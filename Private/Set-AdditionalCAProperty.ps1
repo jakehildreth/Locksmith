@@ -36,7 +36,6 @@
     )
 
     begin {
-        $CAEnrollmentEndpoint = @()
         if (-not ([System.Management.Automation.PSTypeName]'TrustAllCertsPolicy') ) {
             if ($PSVersionTable.PSEdition -eq 'Desktop') {
                 $code = @"
@@ -69,6 +68,7 @@
 
     process {
         $ADCSObjects | Where-Object objectClass -Match 'pKIEnrollmentService' | ForEach-Object {
+            $CAEnrollmentEndpoint = @()
             #[array]$CAEnrollmentEndpoint = $_.'msPKI-Enrollment-Servers' | Select-String 'http.*' | ForEach-Object { $_.Matches[0].Value }
             foreach ($directory in @("certsrv/", "$($_.Name)_CES_Kerberos/service.svc", "$($_.Name)_CES_Kerberos/service.svc/CES", "ADPolicyProvider_CEP_Kerberos/service.svc", "certsrv/mscep/")) {
                 $URL = "://$($_.dNSHostName)/$directory"
