@@ -32,7 +32,7 @@ Build-Module -ModuleName 'Locksmith' {
         ProjectUri           = 'https://github.com/jakehildreth/Locksmith'
         IconUri              = 'https://raw.githubusercontent.com/jakehildreth/Locksmith/main/Images/locksmith.ico'
         PowerShellVersion    = '5.1'
-        Tags                 = @('Windows', 'Locksmith', 'CA', 'PKI', 'ActiveDirectory', 'CertificateServices', 'ADCS')
+        Tags                 = @('Locksmith', 'ActiveDirectory', 'ADCS', 'CA', 'Certificate', 'CertificateAuthority', 'CertificateServices', 'PKI', 'X509', 'Windows')
     }
     New-ConfigurationManifest @Manifest
 
@@ -120,10 +120,16 @@ Build-Module -ModuleName 'Locksmith' {
     New-ConfigurationBuild -Enable:$true -SignModule:$false -DeleteTargetModuleBeforeBuild -MergeModuleOnBuild #-UseWildcardForFunctions
 
     $PreScriptMerge = {
+        [CmdletBinding(HelpUri = 'https://jakehildreth.github.io/Locksmith/Invoke-Locksmith')]
         param (
-            [int]$Mode,
+            # The mode to run Locksmith in. Defaults to 0.
+            [Parameter(Mandatory = $false)]
+            [ValidateSet(0, 1, 2, 3, 4)]
+            [int]$Mode = 0,
+
+            # The scans to run. Defaults to 'All'.
             [Parameter()]
-            [ValidateSet('Auditing','ESC1','ESC2','ESC3','ESC4','ESC5','ESC6','ESC8','ESC11','ESC13','ESC15','EKUwu','All','PromptMe')]
+            [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC8', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'All', 'PromptMe')]
             [array]$Scans = 'All'
         )
     }
