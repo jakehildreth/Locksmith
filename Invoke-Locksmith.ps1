@@ -7,7 +7,7 @@ param (
 
     # The scans to run. Defaults to 'All'.
     [Parameter()]
-    [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC8', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'All', 'PromptMe')]
+    [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'All', 'PromptMe')]
     [array]$Scans = 'All'
 )
 function Convert-IdentityReferenceToSid {
@@ -1456,6 +1456,113 @@ Invoke-Command -ComputerName '$($_.dNSHostName)' -ScriptBlock {
     }
 }
 
+function Find-ESC7 {
+    <#
+    .SYNOPSIS
+        This script finds Active Directory Certificate Services (AD CS) Certificate Authorities (CA) that have the ESC7 vulnerability.
+
+    .DESCRIPTION
+        The script takes an array of AD CS objects as input and filters them based on objects that have the objectClass
+        'pKIEnrollmentService'. If the CA objects have non-standard/unsafe principals as administrators or managers, an issue is created.
+
+    .PARAMETER ADCSObjects
+        Specifies the array of AD CS objects to be processed. This parameter is mandatory.
+
+    .PARAMETER UnsafeUsers
+        Principals that should never be granted control of a CA.
+
+    .PARAMETER SafeUsers
+        Principals that are generally recognized as safe to control a CA.
+
+    .PARAMETER SkipRisk
+        Switch used when processing second-order risks.
+
+    .OUTPUTS
+        The script outputs an array of custom objects representing the matching AD CS objects and their associated information.
+
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [Microsoft.ActiveDirectory.Management.ADEntity[]]$ADCSObjects,
+        [Parameter(Mandatory)]
+        [string]$UnsafeUsers,
+        [Parameter(Mandatory)]
+        [string]$SafeUsers,
+        [switch]$SkipRisk
+    )
+    process {
+        $ADCSObjects | Where-Object {
+            ($_.objectClass -eq 'pKIEnrollmentService') -and
+            ( ($_.CAAdministrator) -or ($_.CertificateManager) )
+        } | ForEach-Object {
+            $UnsafeCAAdministrators = Write-Output $_.CAAdministrator -PipelineVariable admin | ForEach-Object {
+                $SID = Convert-IdentityReferenceToSid -Object $admin
+                if ($SID -notmatch $SafeUsers) {
+                    $admin
+                }
+            }
+            $UnsafeCertificateManagers = Write-Output $_.CertificateManager -PipelineVariable manager | ForEach-Object {
+                $SID = Convert-IdentityReferenceToSid -Object $manager
+                if ($SID -notmatch $SafeUsers) {
+                    $manager
+                }
+            }
+            if ($UnsafeCAAdministrators -or $UnsafeCertificateManagers) {
+                $Issue = [pscustomobject]@{
+                    Forest             = $_.CanonicalName.split('/')[0]
+                    Name               = $_.Name
+                    DistinguishedName  = $_.DistinguishedName
+                    CAAdministrator    = $_.CAAdministrator
+                    CertificateManager = $_.CertificateManager
+                    Issue              = $null
+                    Fix                = $null
+                    Revert             = $null
+                    Technique          = 'ESC7'
+                }
+                if ($UnsafeCAAdministrators) {
+                    $Issue.Issue = $Issue.Issue + @"
+Unexpected prinicipals ($($UnsafeCAAdministrators -join ', ')) are granted "CA Administrator" rights on this Certification Authority.
+
+"@
+                    $Issue.Fix = $Issue.Fix + @"
+Revoke CA Administrator rights from $($UnsafeCAAdministrators -join ', ')
+
+"@
+                    $Issue.Revert = $Issue.Revert + @"
+Reinstate CA Administrator rights for $($UnsafeCAAdministrators -join ', ')
+
+"@
+                }
+                if ($UnsafeCertificateManagers) {
+                    $Issue.Issue = $Issue.Issue + @"
+Unexpected prinicipals ($($UnsafeCertificateManagers -join ', ')) are granted "Certificate Manager" rights on this Certification Authority.
+
+"@
+                    $Issue.Fix = $Issue.Fix + @"
+Revoke CA Administrator rights from $($UnsafeCertificateManagers -join ', ')
+
+"@
+                    $Issue.Revert = $Issue.Revert + @"
+Reinstate CA Administrator rights for $($UnsafeCertificateManagers -join ', ')
+
+"@
+                }
+                if ($SkipRisk -eq $false) {
+                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                }
+                $Issue.Issue = $Issue.Issue + @"
+
+More info:
+  - https://posts.specterops.io/certified-pre-owned-d95910965cd2
+
+"@
+                $Issue
+            }
+        }
+    }
+}
+
 function Find-ESC8 {
     <#
     .SYNOPSIS
@@ -1693,7 +1800,7 @@ function Format-Result {
         Formats the issue result in list format.
 
     .NOTES
-        Author: Spencer Alessi
+        Authors: Spencer Alessi & Jake Hildreth
     #>
     [CmdletBinding()]
     param(
@@ -1710,6 +1817,7 @@ function Format-Result {
         ESC4          = 'ESC4 - Vulnerable Access Control - Certificate Template'
         ESC5          = 'ESC5 - Vulnerable Access Control - PKI Object'
         ESC6          = 'ESC6 - EDITF_ATTRIBUTESUBJECTALTNAME2 Flag Enabled'
+        ESC7          = 'ESC7 - Non-standard PKI Admins'
         ESC8          = 'ESC8 - HTTP/S Enrollment Enabled'
         ESC11         = 'ESC11 - IF_ENFORCEENCRYPTICERTREQUEST Flag Disabled'
         ESC13         = 'ESC13 - Vulnerable Certificate Template - Group-Linked'
@@ -1737,7 +1845,7 @@ function Format-Result {
         if ($Mode -eq 0) {
             # TODO Refactor this
             switch ($UniqueIssue) {
-                { $_ -in @('DETECT', 'ESC6', 'ESC8', 'ESC11') } {
+                { $_ -in @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11') } {
                     $Issue |
                         Format-Table Technique, @{l = 'CA Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Issue -Wrap |
                             Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
@@ -1756,7 +1864,7 @@ function Format-Result {
         }
         elseif ($Mode -eq 1) {
             switch ($UniqueIssue) {
-                { $_ -in @('DETECT', 'ESC6', 'ESC8', 'ESC11') } {
+                { $_ -in @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11') } {
                     $Issue |
                         Format-List Technique, @{l = 'CA Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, DistinguishedName, Issue, Fix, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } |
                             Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
@@ -2448,7 +2556,7 @@ function Invoke-Scans {
         [string]$SafeUsers,
         [Parameter(Mandatory)]
         [string]$SafeOwners,
-        [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC8', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'All', 'PromptMe')]
+        [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'All', 'PromptMe')]
         [array]$Scans = 'All',
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
@@ -2503,6 +2611,10 @@ function Invoke-Scans {
             Write-Host 'Identifying Issuing CAs with EDITF_ATTRIBUTESUBJECTALTNAME2 enabled (ESC6)...'
             [array]$ESC6 = Find-ESC6 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
         }
+        ESC7 {
+            Write-Host 'Identifying Issuing CAs with ESC7...'
+            [array]$ESC7 = Find-ESC7 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers -SafeUsers $SafeUsers
+        }
         ESC8 {
             Write-Host 'Identifying HTTP-based certificate enrollment interfaces (ESC8)...'
             [array]$ESC8 = Find-ESC8 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
@@ -2539,6 +2651,8 @@ function Invoke-Scans {
             [array]$ESC5 = Find-ESC5 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -DangerousRights $DangerousRights -SafeOwners $SafeOwners -SafeObjectTypes $SafeObjectTypes -UnsafeUsers $UnsafeUsers
             Write-Host 'Identifying Certificate Authorities with EDITF_ATTRIBUTESUBJECTALTNAME2 enabled (ESC6)...'
             [array]$ESC6 = Find-ESC6 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
+            Write-Host 'Identifying Certificate Authorities with ESC7...'
+            [array]$ESC7 = Find-ESC7 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers -SafeUsers $SafeUsers
             Write-Host 'Identifying HTTP-based certificate enrollment interfaces (ESC8)...'
             [array]$ESC8 = Find-ESC8 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
             Write-Host 'Identifying Certificate Authorities with IF_ENFORCEENCRYPTICERTREQUEST disabled (ESC11)...'
@@ -2551,7 +2665,7 @@ function Invoke-Scans {
         }
     }
 
-    [array]$AllIssues = $AuditingIssues + $ESC1 + $ESC2 + $ESC3 + $ESC4 + $ESC5 + $ESC6 + $ESC8 + $ESC11 + $ESC13 + $ESC15
+    [array]$AllIssues = $AuditingIssues + $ESC1 + $ESC2 + $ESC3 + $ESC4 + $ESC5 + $ESC6 + $ESC7 + $ESC8 + $ESC11 + $ESC13 + $ESC15
 
     # If these are all empty = no issues found, exit
     if ($AllIssues.Count -lt 1) {
@@ -2569,6 +2683,7 @@ function Invoke-Scans {
         ESC4           = $ESC4
         ESC5           = $ESC5
         ESC6           = $ESC6
+        ESC7           = $ESC7
         ESC8           = $ESC8
         ESC11          = $ESC11
         ESC13          = $ESC13
@@ -2799,6 +2914,8 @@ function Set-AdditionalCAProperty {
         Date: July 15, 2022
     #>
 
+    # TODO REfactor to move the creation of each property into its own function
+
     [CmdletBinding(SupportsShouldProcess)]
     param (
         [parameter(
@@ -2946,11 +3063,25 @@ function Set-AdditionalCAProperty {
                 catch {
                     $InterfaceFlag = 'Failure'
                 }
+                try {
+                    if ($Credential) {
+                        $CertutilSecurity = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { certutil -config $using:CAFullName -getreg CA\Security }
+                    }
+                    else {
+                        $CertutilSecurity = certutil -config $CAFullName -getreg CA\Security
+                    }
+                }
+                catch {
+                    $CAAdministrator = 'Failure'
+                    $CertificateManager = 'Failure'
+                }
             }
             else {
                 $AuditFilter = 'CA Unavailable'
                 $SANFlag = 'CA Unavailable'
                 $InterfaceFlag = 'CA Unavailable'
+                $CAAdministrator = 'CA Unavailable'
+                $CertificateManager = 'CA Unavailable'
             }
             if ($CertutilAudit) {
                 try {
@@ -2985,6 +3116,18 @@ function Set-AdditionalCAProperty {
                     $InterfaceFlag = 'No'
                 }
             }
+            if ($CertutilSecurity) {
+                [string[]]$CAAdministrator = $CertutilSecurity | ForEach-Object {
+                    if ($_ -match '^.*Allow.*CA Administrator.*.*\t(.*)$') {
+                        $matches[1].ToString()
+                    }
+                }
+                [string[]]$CertificateManager = $CertutilSecurity | ForEach-Object {
+                    if ($_ -match '^.*Allow.*Certificate Manager.*\t(.*)$') {
+                        $matches[1].ToString()
+                    }
+                }
+            }
             Add-Member -InputObject $_ -MemberType NoteProperty -Name AuditFilter -Value $AuditFilter -Force
             Add-Member -InputObject $_ -MemberType NoteProperty -Name CAEnrollmentEndpoint -Value $CAEnrollmentEndpoint -Force
             Add-Member -InputObject $_ -MemberType NoteProperty -Name CAFullName -Value $CAFullName -Force
@@ -2992,6 +3135,8 @@ function Set-AdditionalCAProperty {
             Add-Member -InputObject $_ -MemberType NoteProperty -Name CAHostDistinguishedName -Value $CAHostDistinguishedName -Force
             Add-Member -InputObject $_ -MemberType NoteProperty -Name SANFlag -Value $SANFlag -Force
             Add-Member -InputObject $_ -MemberType NoteProperty -Name InterfaceFlag -Value $InterfaceFlag -Force
+            Add-Member -InputObject $_ -MemberType NoteProperty -Name CAAdministrator -Value $CAAdministrator -Force
+            Add-Member -InputObject $_ -MemberType NoteProperty -Name CertificateManager -Value $CertificateManager -Force
         }
     }
 }
@@ -3099,7 +3244,7 @@ function Set-RiskRating {
     $RiskScoring = @()
 
     # CA issues don't rely on a principal and have a base risk of Medium.
-    if ($Issue.Technique -in @('DETECT', 'ESC6', 'ESC8', 'ESC11')) {
+    if ($Issue.Technique -in @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11')) {
         $RiskValue += 3
         $RiskScoring += 'Base Score: 3'
 
@@ -3113,7 +3258,7 @@ function Set-RiskRating {
     }
 
     # Template and object issues rely on a principal and have complex scoring.
-    if ($Issue.Technique -notin @('DETECT', 'ESC6', 'ESC8', 'ESC11')) {
+    if ($Issue.Technique -notin @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11')) {
         $RiskScoring += 'Base Score: 0'
 
         # Templates are more dangerous when enabled, but objects cannot be enabled/disabled.
@@ -4381,6 +4526,7 @@ function Invoke-Locksmith {
             'ESC4',
             'ESC5',
             'ESC6',
+            'ESC7',
             'ESC8',
             'ESC11',
             'ESC13',
@@ -4401,7 +4547,7 @@ function Invoke-Locksmith {
         [System.Management.Automation.PSCredential]$Credential
     )
 
-    $Version = '2025.4.20'
+    $Version = '2025.5.17'
     $LogoPart1 = @'
     _       _____  _______ _     _ _______ _______ _____ _______ _     _
     |      |     | |       |____/  |______ |  |  |   |      |    |_____|
@@ -4572,6 +4718,7 @@ function Invoke-Locksmith {
     $ESC4 = $Results['ESC4']
     $ESC5 = $Results['ESC5']
     $ESC6 = $Results['ESC6']
+    $ESC7 = $Results['ESC7']
     $ESC8 = $Results['ESC8']
     $ESC11 = $Results['ESC11']
     $ESC13 = $Results['ESC13']
@@ -4594,6 +4741,7 @@ function Invoke-Locksmith {
             Format-Result -Issue $ESC4 -Mode 0
             Format-Result -Issue $ESC5 -Mode 0
             Format-Result -Issue $ESC6 -Mode 0
+            Format-Result -Issue $ESC7 -Mode 0
             Format-Result -Issue $ESC8 -Mode 0
             Format-Result -Issue $ESC11 -Mode 0
             Format-Result -Issue $ESC13 -Mode 0
@@ -4623,6 +4771,7 @@ Invoke-Locksmith -Mode 1
             Format-Result -Issue $ESC4 -Mode 1
             Format-Result -Issue $ESC5 -Mode 1
             Format-Result -Issue $ESC6 -Mode 1
+            Format-Result -Issue $ESC7 -Mode 1
             Format-Result -Issue $ESC8 -Mode 1
             Format-Result -Issue $ESC11 -Mode 1
             Format-Result -Issue $ESC13 -Mode 1

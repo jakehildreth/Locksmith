@@ -48,7 +48,7 @@ function Invoke-Scans {
         [string]$SafeUsers,
         [Parameter(Mandatory)]
         [string]$SafeOwners,
-        [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC8', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'All', 'PromptMe')]
+        [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'All', 'PromptMe')]
         [array]$Scans = 'All',
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
@@ -101,6 +101,10 @@ function Invoke-Scans {
             Write-Host 'Identifying Issuing CAs with EDITF_ATTRIBUTESUBJECTALTNAME2 enabled (ESC6)...'
             [array]$ESC6 = Find-ESC6 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
         }
+        ESC7 {
+            Write-Host 'Identifying Issuing CAs with ESC7...'
+            [array]$ESC7 = Find-ESC7 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers -SafeUsers $SafeUsers
+        }
         ESC8 {
             Write-Host 'Identifying HTTP-based certificate enrollment interfaces (ESC8)...'
             [array]$ESC8 = Find-ESC8 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
@@ -137,6 +141,8 @@ function Invoke-Scans {
             [array]$ESC5 = Find-ESC5 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -DangerousRights $DangerousRights -SafeOwners $SafeOwners -SafeObjectTypes $SafeObjectTypes -UnsafeUsers $UnsafeUsers
             Write-Host 'Identifying Certificate Authorities with EDITF_ATTRIBUTESUBJECTALTNAME2 enabled (ESC6)...'
             [array]$ESC6 = Find-ESC6 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
+            Write-Host 'Identifying Certificate Authorities with ESC7...'
+            [array]$ESC7 = Find-ESC7 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers -SafeUsers $SafeUsers
             Write-Host 'Identifying HTTP-based certificate enrollment interfaces (ESC8)...'
             [array]$ESC8 = Find-ESC8 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
             Write-Host 'Identifying Certificate Authorities with IF_ENFORCEENCRYPTICERTREQUEST disabled (ESC11)...'
@@ -149,7 +155,7 @@ function Invoke-Scans {
         }
     }
 
-    [array]$AllIssues = $AuditingIssues + $ESC1 + $ESC2 + $ESC3 + $ESC4 + $ESC5 + $ESC6 + $ESC8 + $ESC11 + $ESC13 + $ESC15
+    [array]$AllIssues = $AuditingIssues + $ESC1 + $ESC2 + $ESC3 + $ESC4 + $ESC5 + $ESC6 + $ESC7 + $ESC8 + $ESC11 + $ESC13 + $ESC15
 
     # If these are all empty = no issues found, exit
     if ($AllIssues.Count -lt 1) {
@@ -167,6 +173,7 @@ function Invoke-Scans {
         ESC4           = $ESC4
         ESC5           = $ESC5
         ESC6           = $ESC6
+        ESC7           = $ESC7
         ESC8           = $ESC8
         ESC11          = $ESC11
         ESC13          = $ESC13

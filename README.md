@@ -55,7 +55,7 @@ Install-Module -Name Locksmith -Scope CurrentUser
    Invoke-Locksmith
    ```
 2. Download the Standalone Script Without Module
-   1. Download the latest monolithic (all-in-one) script version: [https://github.com/jakehildreth/Locksmith/releases/latest/download/Invoke-Locksmith.zip](https://github.com/jakehildreth/Locksmith/releases/latest/download/Invoke-Locksmith.zip).
+   1. Download the [latest monolithic (all-in-one) script version](https://github.com/jakehildreth/Locksmith/releases/latest/download/Invoke-Locksmith.zip).
    2. Open a PowerShell prompt to the location of the downloaded file and run:
    ```powershell
    Unblock-File .\Invoke-Locksmith.zip

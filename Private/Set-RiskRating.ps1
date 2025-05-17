@@ -55,7 +55,7 @@ function Set-RiskRating {
     $RiskScoring = @()
 
     # CA issues don't rely on a principal and have a base risk of Medium.
-    if ($Issue.Technique -in @('DETECT', 'ESC6', 'ESC8', 'ESC11')) {
+    if ($Issue.Technique -in @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11')) {
         $RiskValue += 3
         $RiskScoring += 'Base Score: 3'
 
@@ -69,7 +69,7 @@ function Set-RiskRating {
     }
 
     # Template and object issues rely on a principal and have complex scoring.
-    if ($Issue.Technique -notin @('DETECT', 'ESC6', 'ESC8', 'ESC11')) {
+    if ($Issue.Technique -notin @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11')) {
         $RiskScoring += 'Base Score: 0'
 
         # Templates are more dangerous when enabled, but objects cannot be enabled/disabled.
