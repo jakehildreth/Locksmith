@@ -137,11 +137,6 @@ function Set-RiskRating {
             # Groups are riskier than individual principals
             $RiskValue += 1
             $RiskScoring += 'Group: +1'
-        } elseif ($Issue.IdentityReferenceSID -notmatch $UnsafeUsers -and
-                $Issue.IdentityReferenceSID -notmatch $SafeUsers -and
-                $IdentityReferenceObjectClass -notlike '*ManagedServiceAccount') {
-            $RiskValue += 1
-            $RiskScoring += 'Unprivileged Principal: +1'
         }
 
         # Safe users and managed service accounts are inherently safer than other principals - except in ESC3 Condition 2 and ESC9!
@@ -363,6 +358,9 @@ function Set-RiskRating {
                             # Groups are more dangerous than individual principals.
                             $Principals += $OtherIssue.IdentityReference.Value
                             $OtherIssueRisk += 1
+                        } else {
+                            $Principals += $OtherIssue.IdentityReference.Value
+                            $OtherIssueRisk += 0.1
                         }
                         $CheckedESC5Templates.$($OtherIssue.Name) = $Principals
                     } # forech ($OtherIssue)

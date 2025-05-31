@@ -157,7 +157,7 @@ function Invoke-Locksmith {
 
     # GenericAll, WriteDacl, and WriteOwner all permit full control of an AD object.
     # WriteProperty may or may not permit full control depending the specific property and AD object type.
-    $DangerousRights = 'GenericAll|WriteDacl|WriteOwner|WriteProperty'
+    $DangerousRights = 'GenericAll|Write'
 
     # Extended Key Usage for client authentication. A requirement for ESC3.
     $EnrollmentAgentEKU = '1\.3\.6\.1\.4\.1\.311\.20\.2\.1'
@@ -321,7 +321,8 @@ function Invoke-Locksmith {
 identified in the environment. For more details including:
 
   - DistinguishedName of impacted object(s)
-  - Remediation guidance and/or code
+  - General remediation guidance and/or code for all issues
+  - Custom remediation guidance and/or code for some issues! 
   - Revert guidance and/or code (in case remediation breaks something!)
 
 Run Locksmith in Mode 1!
