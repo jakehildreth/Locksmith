@@ -67,21 +67,28 @@ function Set-RiskRating {
         if ($Issue.Technique -eq 'ESC7') {
             # If an Issue can be tied to a principal, the principal's objectClass impacts the Issue's risk
             $SID = $Issue.IdentityReferenceSID.ToString()
-            $IdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $SID } | Select-Object objectClass
+            <# 
+                Check out my change @jakehildreth
+                At my demo environment was the variable SID empty, because two additional sub ca are offline.
+                My Workaround is to checking $SID isn't null.
+            #> 
+            if (!$SID) {
+                $IdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $SID } | Select-Object objectClass
 
-            if ($Issue.IdentityReferenceSID -match $UnsafeUsers) {
-                # Authenticated Users, Domain Users, Domain Computers etc. are very risky
-                $RiskValue += 2
-                $RiskScoring += 'Very Large Group: +2'
-            } elseif ($IdentityReferenceObjectClass -eq 'group') {
-                # Groups are riskier than individual principals
-                $RiskValue += 1
-                $RiskScoring += 'Group: +1'
-            } elseif ($Issue.IdentityReferenceSID -notmatch $UnsafeUsers -and
-                    $Issue.IdentityReferenceSID -notmatch $SafeUsers -and
-                    $IdentityReferenceObjectClass -notlike '*ManagedServiceAccount') {
-                $RiskValue += 1
-                $RiskScoring += 'Unprivileged Principal: +1'
+                if ($Issue.IdentityReferenceSID -match $UnsafeUsers) {
+                    # Authenticated Users, Domain Users, Domain Computers etc. are very risky
+                    $RiskValue += 2
+                    $RiskScoring += 'Very Large Group: +2'
+                } elseif ($IdentityReferenceObjectClass -eq 'group') {
+                    # Groups are riskier than individual principals
+                    $RiskValue += 1
+                    $RiskScoring += 'Group: +1'
+                } elseif ($Issue.IdentityReferenceSID -notmatch $UnsafeUsers -and
+                        $Issue.IdentityReferenceSID -notmatch $SafeUsers -and
+                        $IdentityReferenceObjectClass -notlike '*ManagedServiceAccount') {
+                    $RiskValue += 1
+                    $RiskScoring += 'Unprivileged Principal: +1'
+                }
             }
         }
 
