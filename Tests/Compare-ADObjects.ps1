@@ -5,9 +5,26 @@ param(
     [Parameter(Mandatory)]
     [string]$DN2
 )
+$ExcludedProperties = @(
+    'CanonicalName'
+    'CN'
+    'Created'
+    'createTimeStamp'
+    'Description'
+    'DisplayName'
+    'DistinguishedName'
+    'Modified'
+    'modifyTimeStamp'
+    'Name'
+    'ObjectGUID'
+    'uSNChanged'
+    'uSNCreated'
+    'whenChanged'
+    'whenCreated'
+)
 
-$ReferenceObject = Get-ADObject -Identity $DN1 -Properties *
-$DifferenceObject = Get-ADObject -Identity $DN2 -Properties *
+$ReferenceObject = Get-ADObject -Identity $DN1 -Properties * | Select-Object -Property * -ExcludeProperty $ExcludedProperties
+$DifferenceObject = Get-ADObject -Identity $DN2 -Properties * | Select-Object -Property * -ExcludeProperty $ExcludedProperties
 
 $ObjectProperties = $ReferenceObject | Get-Member -MemberType Property, NoteProperty | ForEach-Object Name
 $ObjectProperties += $DifferenceObject | Get-Member -MemberType Property, NoteProperty | ForEach-Object Name
