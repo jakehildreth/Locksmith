@@ -39,16 +39,8 @@
             ( ($object.CAAdministrator) -or ($object.CertificateManager) )
         } | ForEach-Object {
             Write-Output $object.CAAdministrator -PipelineVariable admin | ForEach-Object {
-                <#
-                    Checkout my change @jakehildreth
-                    Get by a customer and by demo lab this issue
-                    Exception calling "Translate" with "1" argument(s): "Some or all identity references could not be translated."
-                #>
                 if (($admin -match $env:USERDOMAIN) -or ($admin -match 'BUILTIN')) {
-                    #write-host "Extanten from Mathias by CAAdministrator" -ForegroundColor DarkRed
-                    #Write-Host "`$admin is $($admin)"
                     $SID = Convert-IdentityReferenceToSid -Object $admin
-                    #write-host "`$SID of $($admin) is $($SID)"
                     if ($SID -notmatch $SafeUsers) {
                         $Issue = [pscustomobject]@{
                             Forest               = $object.CanonicalName.split('/')[0]
@@ -86,10 +78,7 @@ More info:
 
             Write-Output $object.CertificateManager -PipelineVariable admin | ForEach-Object {
                 if (($admin -match $env:USERDOMAIN) -or ($admin -match 'BUILTIN')) {
-                    #write-host "Extanten from Mathias by CertificateManager" -ForegroundColor DarkRed
-                    #Write-Host "`$admin is $($admin)"
                     $SID = Convert-IdentityReferenceToSid -Object $admin
-                    #write-host "`$SSID of $($admin) is $($SID)"
                     if ($SID -notmatch $SafeUsers) {
                         $Issue = [pscustomobject]@{
                             Forest               = $object.CanonicalName.split('/')[0]
