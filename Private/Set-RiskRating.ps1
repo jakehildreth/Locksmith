@@ -67,11 +67,8 @@ function Set-RiskRating {
         if ($Issue.Technique -eq 'ESC7') {
             # If an Issue can be tied to a principal, the principal's objectClass impacts the Issue's risk
             $SID = $Issue.IdentityReferenceSID.ToString()
-            <# 
-                Check out my change @jakehildreth
-                At my demo environment was the variable SID empty, because two additional sub ca are offline.
-                My Workaround is to checking $SID isn't null.
-            #> 
+            
+            # Check to make sure $SID isn't null.
             if (!$SID) {
                 $IdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $SID } | Select-Object objectClass
 
