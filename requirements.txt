@@ -1,0 +1,6 @@
+# https://github.com/readthedocs-examples/example-mkdocs-basic/blob/main/docs/requirements.txt
+# requirements.txt
+jinja2==3.1.6  #https://pypi.org/project/Jinja2/
+mkdocs>=1.6.0  #https://github.com/mkdocs/mkdocs
+mkdocs-material==9.5.25  #https://github.com/squidfunk/mkdocs-material
+pygments>=2.18.0  #https://pypi.org/project/Pygments/
