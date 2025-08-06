@@ -4,13 +4,13 @@ name: 📖 Deploy MkDocs to GitHub
 # Install, build, and deploy MkDocs to GitHub Pages using content from the Docs folder.
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:  # Only deploy MkDocs when the contents of the docs folder change or when this workflow changes
-      - 'Docs/**'
-      - '.github/workflows/Deploy MkDocs.yml'
-      - './mkdocs.yml'
+  #pull_request:
+  #  branches:
+  #    - main
+  #  paths:  # Only deploy MkDocs when the contents of the docs folder change or when this workflow changes
+  #    - 'Docs/**'
+  #    - '.github/workflows/Deploy MkDocs.yml'
+  #    - './mkdocs.yml'
   push:
     branches:
       - main  # The branch you want to deploy from
