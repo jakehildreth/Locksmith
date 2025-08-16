@@ -49,7 +49,7 @@ We will then take care of the issue as soon as possible.
 >
 > When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license.
 
-Locksmith is "Open Source, acknowledged contribution". This means that any contribution will have to be discussed with the Maintainers before being submitted.
+Locksmith is "Open Source, acknowledged contribution". This means that any contribution (other than Bug Reports) will have to be discussed with the Maintainers before being submitted.
 
 ### Reporting Bugs
 
