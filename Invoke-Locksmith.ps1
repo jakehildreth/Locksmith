@@ -2053,20 +2053,20 @@ function Get-CAHostObject {
         if ($Credential) {
             $ADCSObjects | Where-Object objectClass -Match 'pKIEnrollmentService' | ForEach-Object {
                 if ($_.CAHostDistinguishedName) {
-                    Get-ADObject $_.CAHostDistinguishedName -Properties * -Server $ForestGC -Credential $Credential
+                    Get-ADObject $_.CAHostDistinguishedName -Properties * -Server $ForestGC -Credential $Credential 
                 }
                 else {
-                    Write-Warning "Get-CAHostObject: Unable to get information from $($_.DisplayName)"
+                    Write-Warning "Get-CAHostObject: Unable to get information from $($_.DisplayName)" 
                 }
             }
         }
         else {
             $ADCSObjects | Where-Object objectClass -Match 'pKIEnrollmentService' | ForEach-Object {
                 if ($_.CAHostDistinguishedName) {
-                    Get-ADObject -Identity $_.CAHostDistinguishedName -Properties * -Server $ForestGC
+                    Get-ADObject -Identity $_.CAHostDistinguishedName -Properties * -Server $ForestGC 
                 }
                 else {
-                    Write-Warning "Get-CAHostObject: Unable to get information from $($_.DisplayName)"
+                    Write-Warning "Get-CAHostObject: Unable to get information from $($_.DisplayName)" 
                 }
             }
         }
@@ -2232,7 +2232,7 @@ function Install-RSATADPowerShell {
     else {
         Write-Warning -Message "The ActiveDirectory PowerShell module is required for Locksmith, but is not installed. Please launch an elevated PowerShell session to have this module installed for you automatically."
         # The goal here is to exit the script without closing the PowerShell window. Need to test.
-        Return
+        return
     }
 }
 function Invoke-Remediation {
@@ -2964,7 +2964,7 @@ function New-Dictionary {
             ReferenceUrls = @('https://github.com/jakehildreth/Locksmith', 'https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/designing-and-implementing-a-pki-part-i-design-and-planning/ba-p/396953')
         }
     )
-    Return $Dictionary
+    return $Dictionary
 }
 
 function New-OutputPath {
@@ -3039,7 +3039,7 @@ function Set-AdditionalCAProperty {
     begin {
         if (-not ([System.Management.Automation.PSTypeName]'TrustAllCertsPolicy') ) {
             if ($PSVersionTable.PSEdition -eq 'Desktop') {
-                $code = @"
+                $code = @'
                     using System.Net;
                     using System.Security.Cryptography.X509Certificates;
                     public class TrustAllCertsPolicy : ICertificatePolicy {
@@ -3047,12 +3047,12 @@ function Set-AdditionalCAProperty {
                             return true;
                         }
                     }
-"@
+'@
                 Add-Type -TypeDefinition $code -Language CSharp
                 [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
             }
             else {
-                Add-Type @"
+                Add-Type @'
                     using System.Net;
                     using System.Security.Cryptography.X509Certificates;
                     using System.Net.Security;
@@ -3061,7 +3061,7 @@ function Set-AdditionalCAProperty {
                             return true;
                         }
                     }
-"@
+'@
                 # Set the ServerCertificateValidationCallback
                 [System.Net.ServicePointManager]::ServerCertificateValidationCallback = [TrustAllCertsPolicy]::TrustAllCerts
             }
@@ -3072,7 +3072,7 @@ function Set-AdditionalCAProperty {
         $ADCSObjects | Where-Object objectClass -Match 'pKIEnrollmentService' | ForEach-Object {
             $CAEnrollmentEndpoint = @()
             #[array]$CAEnrollmentEndpoint = $_.'msPKI-Enrollment-Servers' | Select-String 'http.*' | ForEach-Object { $_.Matches[0].Value }
-            foreach ($directory in @("certsrv/", "$($_.Name)_CES_Kerberos/service.svc", "$($_.Name)_CES_Kerberos/service.svc/CES", "ADPolicyProvider_CEP_Kerberos/service.svc", "certsrv/mscep/")) {
+            foreach ($directory in @('certsrv/', "$($_.Name)_CES_Kerberos/service.svc", "$($_.Name)_CES_Kerberos/service.svc/CES", 'ADPolicyProvider_CEP_Kerberos/service.svc', 'certsrv/mscep/')) {
                 $URL = "://$($_.dNSHostName)/$directory"
                 try {
                     $Auth = 'NTLM'
@@ -3119,6 +3119,7 @@ function Set-AdditionalCAProperty {
                             }
                         }
                         catch {
+                            Write-Debug "There may have been an error or something nothing found. $_"
                         }
                     }
                 }
@@ -3134,10 +3135,10 @@ function Set-AdditionalCAProperty {
                 $CAHostFQDN = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Properties DnsHostname -Server $ForestGC).DnsHostname
             }
             $ping = if ($CAHostFQDN) {
-                Test-Connection -ComputerName $CAHostFQDN -Count 1 -Quiet
+                Test-Connection -ComputerName $CAHostFQDN -Count 1 -Quiet 
             }
             else {
-                Write-Warning "Unable to resolve $($_.Name) Fully Qualified Domain Name (FQDN)"
+                Write-Warning "Unable to resolve $($_.Name) Fully Qualified Domain Name (FQDN)" 
             }
             if ($ping) {
                 try {
@@ -3303,18 +3304,20 @@ function Set-AdditionalTemplateProperty {
         [Microsoft.ActiveDirectory.Management.ADEntity[]]$ADCSObjects
     )
 
-    $ADCSObjects | Where-Object objectClass -Match 'pKICertificateTemplate' -PipelineVariable template | ForEach-Object {
-        # Write-Host "[?] Checking if template `"$($template.Name)`" is Enabled on any Certification Authority." -ForegroundColor Blue
-        $Enabled = $false
-        $EnabledOn = @()
-        foreach ($ca in ($ADCSObjects | Where-Object objectClass -EQ 'pKIEnrollmentService')) {
-            if ($ca.certificateTemplates -contains $template.Name) {
-                $Enabled = $true
-                $EnabledOn += $ca.Name
-            }
+    process {
+        $ADCSObjects | Where-Object objectClass -Match 'pKICertificateTemplate' -PipelineVariable template | ForEach-Object {
+            # Write-Host "[?] Checking if template `"$($template.Name)`" is Enabled on any Certification Authority." -ForegroundColor Blue
+            $Enabled = $false
+            $EnabledOn = @()
+            foreach ($ca in ($ADCSObjects | Where-Object objectClass -EQ 'pKIEnrollmentService')) {
+                if ($ca.certificateTemplates -contains $template.Name) {
+                    $Enabled = $true
+                    $EnabledOn += $ca.Name
+                }
 
-            $template | Add-Member -NotePropertyName Enabled -NotePropertyValue $Enabled -Force
-            $template | Add-Member -NotePropertyName EnabledOn -NotePropertyValue $EnabledOn -Force
+                $template | Add-Member -NotePropertyName Enabled -NotePropertyValue $Enabled -Force
+                $template | Add-Member -NotePropertyName EnabledOn -NotePropertyValue $EnabledOn -Force
+            }
         }
     }
 }
@@ -3706,6 +3709,10 @@ function Set-RiskRating {
                             $Principals += $OtherIssue.IdentityReference.Value
                             $OtherIssueRisk += 1
                         }
+                        else {
+                            $Principals += $OtherIssue.IdentityReference.Value
+                            $OtherIssueRisk += 0.1
+                        }
                         $CheckedESC5Templates.$($OtherIssue.Name) = $Principals
                     } # forech ($OtherIssue)
                     if ($OtherIssueRisk -ge 2) {
@@ -3727,23 +3734,23 @@ function Set-RiskRating {
             switch ($Issue.objectClass) {
                 # Being able to modify Root CA Objects is very bad.
                 'certificationAuthority' {
-                    $RiskValue += 2; $RiskScoring += 'Root Certification Authority bject: +2'
+                    $RiskValue += 2; $RiskScoring += 'Root Certification Authority bject: +2' 
                 }
                 # Being able to modify Issuing CA Objects is also very bad.
                 'pKIEnrollmentService' {
-                    $RiskValue += 2; $RiskScoring += 'Issuing Certification Authority Object: +2'
+                    $RiskValue += 2; $RiskScoring += 'Issuing Certification Authority Object: +2' 
                 }
                 # Being able to modify CA Hosts? Yeah... very bad.
                 'computer' {
-                    $RiskValue += 2; $RiskScoring += 'Certification Authority Host Computer: +2'
+                    $RiskValue += 2; $RiskScoring += 'Certification Authority Host Computer: +2' 
                 }
                 # Being able to modify OIDs could result in ESC13 vulns.
                 'msPKI-Enterprise-Oid' {
-                    $RiskValue += 1; $RiskScoring += 'OID: +1'
+                    $RiskValue += 1; $RiskScoring += 'OID: +1' 
                 }
                 # Being able to modify PKS containers is bad.
                 'container' {
-                    $RiskValue += 1; $RiskScoring += 'Container: +1'
+                    $RiskValue += 1; $RiskScoring += 'Container: +1' 
                 }
             }
         }
@@ -3764,19 +3771,19 @@ function Set-RiskRating {
     # Convert Value to Name
     $RiskName = switch ($RiskValue) {
         { $_ -le 1 } {
-            'Informational'
+            'Informational' 
         }
         2 {
-            'Low'
+            'Low' 
         }
         3 {
-            'Medium'
+            'Medium' 
         }
         4 {
-            'High'
+            'High' 
         }
         { $_ -ge 5 } {
-            'Critical'
+            'Critical' 
         }
     }
 
@@ -3837,9 +3844,9 @@ function Test-IsADAdmin {
     #>
     if (
         # Need to test to make sure this checks domain groups and not local groups, particularly for 'Administrators' (reference SID instead of name?).
-         ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole("Domain Admins") -or
-         ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole("Administrators") -or
-         ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole("Enterprise Admins")
+        ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole("Domain Admins") -or
+        ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole("Administrators") -or
+        ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole("Enterprise Admins")
     ) {
         return $true
     }
@@ -3887,7 +3894,7 @@ function Test-IsLocalAccountSession {
     $CurrentSID = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
     $LocalSIDs = (Get-LocalUser).SID.Value
     if ($CurrentSID -in $LocalSIDs) {
-        Return $true
+        return $true
     }
 }
 
@@ -3932,40 +3939,47 @@ function Test-IsMemberOfProtectedUsers {
         $User
     )
 
-    Import-Module ActiveDirectory
-
-    # Use the currently logged in user if none is specified
-    # Get the user from Active Directory
-    if (-not($User)) {
-        # These two are different types. Fixed by referencing $CheckUser.SID later, but should fix here by using one type.
-        $CurrentUser = ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name).Split('\')[-1]
-        $CheckUser = Get-ADUser $CurrentUser -Properties primaryGroupID
-    }
-    else {
-        $CheckUser = Get-ADUser $User -Properties primaryGroupID
+    begin {
+        Import-Module ActiveDirectory
     }
 
-    # Get the Protected Users group by SID instead of by its name to ensure compatibility with any locale or language.
-    $DomainSID = (Get-ADDomain).DomainSID.Value
-    $ProtectedUsersSID = "$DomainSID-525"
+    process {
+        # Use the currently logged in user if none is specified
+        # Get the user from Active Directory
+        if (-not($User)) {
+            # These two are different types. Fixed by referencing $CheckUser.SID later, but should fix here by using one type.
+            $CurrentUser = ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name).Split('\')[-1]
+            $CheckUser = Get-ADUser $CurrentUser -Properties primaryGroupID
+        }
+        else {
+            $CheckUser = Get-ADUser $User -Properties primaryGroupID
+        }
 
-    # Get members of the Protected Users group for the current domain. Recuse in case groups are nested in it.
-    $ProtectedUsers = Get-ADGroupMember -Identity $ProtectedUsersSID -Recursive | Select-Object -Unique
+        # Get the Protected Users group by SID instead of by its name to ensure compatibility with any locale or language.
+        $DomainSID = (Get-ADDomain).DomainSID.Value
+        $ProtectedUsersSID = "$DomainSID-525"
 
-    # Check if the current user is in the 'Protected Users' group
-    if ($ProtectedUsers.SID.Value -contains $CheckUser.SID) {
-        Write-Verbose "$($CheckUser.Name) ($($CheckUser.DistinguishedName)) is a member of the Protected Users group."
-        $true
-    }
-    else {
-        # Check if the user's PGID (primary group ID) is set to the Protected Users group RID (525).
-        if ( $CheckUser.primaryGroupID -eq '525' ) {
+        # Get members of the Protected Users group for the current domain. Recuse in case groups are nested in it.
+        $ProtectedUsers = Get-ADGroupMember -Identity $ProtectedUsersSID -Recursive | Select-Object -Unique
+
+        # Check if the current user is in the 'Protected Users' group
+        if ($ProtectedUsers.SID.Value -contains $CheckUser.SID) {
+            Write-Verbose "$($CheckUser.Name) ($($CheckUser.DistinguishedName)) is a member of the Protected Users group."
             $true
         }
         else {
-            Write-Verbose "$($CheckUser.Name) ($($CheckUser.DistinguishedName)) is not a member of the Protected Users group."
-            $false
+            # Check if the user's PGID (primary group ID) is set to the Protected Users group RID (525).
+            if ( $CheckUser.primaryGroupID -eq '525' ) {
+                $true
+            }
+            else {
+                Write-Verbose "$($CheckUser.Name) ($($CheckUser.DistinguishedName)) is not a member of the Protected Users group."
+                $false
+            }
         }
+    }
+
+    end {
     }
 }
 
@@ -4335,7 +4349,7 @@ Set-Acl -Path `$Path -AclObject `$ACL
 "@
             }
             4 {
-                break
+                break 
             }
             5 {
                 $Issue.Fix = @"
@@ -4587,7 +4601,7 @@ TODO
 
 #>
 
-Function Write-HostColorized {
+function Write-HostColorized {
     <#
     .SYNOPSIS
     Colors portions of the default host output that match given patterns.
@@ -4706,10 +4720,10 @@ Function Write-HostColorized {
             # We precompile them for better performance with many input objects.
             [System.Text.RegularExpressions.RegexOptions] $reOpts =
             if ($CaseSensitive) {
-                'Compiled, ExplicitCapture'
+                'Compiled, ExplicitCapture' 
             }
             else {
-                'Compiled, ExplicitCapture, IgnoreCase'
+                'Compiled, ExplicitCapture, IgnoreCase' 
             }
 
             # Transform the dictionary:
@@ -4731,20 +4745,20 @@ Function Write-HostColorized {
                 }
                 $colorArgs = @{ }
                 if ($fg) {
-                    $colorArgs['ForegroundColor'] = [ConsoleColor] $fg
+                    $colorArgs['ForegroundColor'] = [ConsoleColor] $fg 
                 }
                 if ($bg) {
-                    $colorArgs['BackgroundColor'] = [ConsoleColor] $bg
+                    $colorArgs['BackgroundColor'] = [ConsoleColor] $bg 
                 }
 
                 # Consolidate the patterns into a single pattern with alternation ('|'),
                 # escape the patterns if -SimpleMatch was passsed.
                 $re = New-Object regex -Args `
                 $(if ($SimpleMatch) {
-                  ($entry.Key | ForEach-Object { [regex]::Escape($_) }) -join '|'
+                        ($entry.Key | ForEach-Object { [regex]::Escape($_) }) -join '|'
                     }
                     else {
-                  ($entry.Key | ForEach-Object { '({0})' -f $_ }) -join '|'
+                        ($entry.Key | ForEach-Object { '({0})' -f $_ }) -join '|'
                     }),
                 $reOpts
 
@@ -4753,7 +4767,7 @@ Function Write-HostColorized {
             }
         }
         catch {
-            throw
+            throw 
         }
 
         # Construct the arguments to pass to Out-String.
@@ -4776,7 +4790,7 @@ Function Write-HostColorized {
                     foreach ($m in $entry.Key.Matches($_)) {
                         @{ Index = $m.Index; Text = $m.Value; ColorArgs = $entry.Value }
                         if ($WholeLine) {
-                            break patternLoop
+                            break patternLoop 
                         }
                     }
                 }
@@ -4955,7 +4969,7 @@ function Invoke-Locksmith {
         [System.Management.Automation.PSCredential]$Credential
     )
 
-    $Version = '2025.5.26'
+    $Version = '2025.8.25'
     $LogoPart1 = @'
     _       _____  _______ _     _ _______ _______ _____ _______ _     _
     |      |     | |       |____/  |______ |  |  |   |      |    |_____|
@@ -4997,7 +5011,7 @@ function Invoke-Locksmith {
 
     # GenericAll, WriteDacl, and WriteOwner all permit full control of an AD object.
     # WriteProperty may or may not permit full control depending the specific property and AD object type.
-    $DangerousRights = 'GenericAll|WriteDacl|WriteOwner|WriteProperty'
+    $DangerousRights = 'GenericAll|Write'
 
     # Extended Key Usage for client authentication. A requirement for ESC3.
     $EnrollmentAgentEKU = '1\.3\.6\.1\.4\.1\.311\.20\.2\.1'
@@ -5162,11 +5176,13 @@ function Invoke-Locksmith {
 [!] You ran Locksmith in Mode 0 which only provides an high-level overview of issues
 identified in the environment. For more details including:
 
-  - DistinguishedName of impacted object(s)
-  - Remediation guidance and/or code
+  - Detailed Risk Rating
+  - General remediation guidance and/or code for all issues
+  - Custom remediation guidance and/or code for some issues!
   - Revert guidance and/or code (in case remediation breaks something!)
+  - Distinguished Name of impacted object(s)
 
-Run Locksmith in Mode 1!
+Try Mode 1!
 
 # Module version
 Invoke-Locksmith -Mode 1
@@ -5229,7 +5245,8 @@ Invoke-Locksmith -Mode 1
         }
     }
     Write-Host 'Thank you for using ' -NoNewline
-    Write-Host "Locksmith <3`n" -ForegroundColor Magenta
+    Write-Host 'Locksmith <3 ' -ForegroundColor Magenta -NoNewline
+    Write-Host "(https://github.com/jakehildreth/Locksmith)`n"
 }
 
 
