@@ -661,7 +661,7 @@ function Find-ESC16 {
             if ($_.DisableExtensionList -eq 'Yes') {
                 $Issue.Issue = @"
 The Certification Authority (CA) $($_.CAFullName) has the szOID_NTDS_CA_SECURITY_EXT security extension disabled. When
-this extension is disabled, every certificate issued from this template will be unable to to reliably map a certificate to a
+this extension is disabled, every certificate issued from this template will be unable to reliably map a certificate to a
 user or computer account's SID for authentication.
 
 More info:
