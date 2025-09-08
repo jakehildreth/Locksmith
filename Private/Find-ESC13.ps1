@@ -47,7 +47,7 @@ function Find-ESC13 {
     } | ForEach-Object {
         foreach ($policy in $_.'msPKI-Certificate-Policy') {
             if ($ADCSObjects.'msPKI-Cert-Template-OID' -contains $policy) {
-                $OidToCheck = $ADCSObjects | Where-Object 'msPKI-Cert-Template-OID' -eq $policy
+                $OidToCheck = $ADCSObjects | Where-Object 'msPKI-Cert-Template-OID' -EQ $policy
                 if ($OidToCheck.'msDS-OIDToGroupLink') {
                     foreach ($entry in $_.nTSecurityDescriptor.Access) {
                         $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
@@ -56,7 +56,12 @@ function Find-ESC13 {
                         } else {
                             $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
                         }
-                        if ( ($SID -notmatch $SafeUsers) -and ($entry.ActiveDirectoryRights -match 'ExtendedRight') ) {
+                        if (
+                            ($SID -notmatch $SafeUsers) -and
+                            ( ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -and
+                                ( $entry.ObjectType -match '0e10c968-78fb-11d2-90d4-00c04f79dc55|00000000-0000-0000-0000-000000000000' ) ) -or
+                            ($entry.ActiveDirectoryRights -match 'GenericAll') )
+                        ) {
                             $Issue = [pscustomobject]@{
                                 Forest                = $_.CanonicalName.split('/')[0]
                                 Name                  = $_.Name
