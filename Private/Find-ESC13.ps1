@@ -47,7 +47,7 @@ function Find-ESC13 {
     } | ForEach-Object {
         foreach ($policy in $_.'msPKI-Certificate-Policy') {
             if ($ADCSObjects.'msPKI-Cert-Template-OID' -contains $policy) {
-                $OidToCheck = $ADCSObjects | Where-Object 'msPKI-Cert-Template-OID' -EQ $policy
+                $OidToCheck = $ADCSObjects | Where-Object 'msPKI-Cert-Template-OID' -eq $policy
                 if ($OidToCheck.'msDS-OIDToGroupLink') {
                     foreach ($entry in $_.nTSecurityDescriptor.Access) {
                         $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
