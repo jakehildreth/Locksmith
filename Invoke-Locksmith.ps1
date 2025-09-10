@@ -463,7 +463,12 @@ function Find-ESC13 {
                         else {
                             $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
                         }
-                        if ( ($SID -notmatch $SafeUsers) -and ($entry.ActiveDirectoryRights -match 'ExtendedRight') ) {
+                        if (
+                            ($SID -notmatch $SafeUsers) -and
+                            ( ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -and
+                                ( $entry.ObjectType -match '0e10c968-78fb-11d2-90d4-00c04f79dc55|00000000-0000-0000-0000-000000000000' ) ) -or
+                            ($entry.ActiveDirectoryRights -match 'GenericAll') )
+                        ) {
                             $Issue = [pscustomobject]@{
                                 Forest                = $_.CanonicalName.split('/')[0]
                                 Name                  = $_.Name
@@ -556,7 +561,12 @@ function Find-ESC15 {
             else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
-            if ( ($SID -notmatch $SafeUsers) -and ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -or ($entry.ActiveDirectoryRights -match 'GenericAll') ) ) {
+            if (
+                ($SID -notmatch $SafeUsers) -and
+                ( ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -and
+                    ( $entry.ObjectType -match '0e10c968-78fb-11d2-90d4-00c04f79dc55|00000000-0000-0000-0000-000000000000' ) ) -or
+                ($entry.ActiveDirectoryRights -match 'GenericAll') )
+            ) {
                 $Issue = [pscustomobject]@{
                     Forest                = $_.CanonicalName.split('/')[0]
                     Name                  = $_.Name
@@ -651,7 +661,7 @@ function Find-ESC16 {
             if ($_.DisableExtensionList -eq 'Yes') {
                 $Issue.Issue = @"
 The Certification Authority (CA) $($_.CAFullName) has the szOID_NTDS_CA_SECURITY_EXT security extension disabled. When
-this extension is disabled, every certificate issued by this CA will be unable to to reliably map a certificate to a
+this extension is disabled, every certificate issued from this template will be unable to reliably map a certificate to a
 user or computer account's SID for authentication.
 
 More info:
@@ -734,7 +744,12 @@ function Find-ESC2 {
             else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
-            if ( ($SID -notmatch $SafeUsers) -and ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -or ($entry.ActiveDirectoryRights -match 'GenericAll') ) ) {
+            if (
+                ($SID -notmatch $SafeUsers) -and
+                ( ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -and
+                    ( $entry.ObjectType -match '0e10c968-78fb-11d2-90d4-00c04f79dc55|00000000-0000-0000-0000-000000000000' ) ) -or
+                ($entry.ActiveDirectoryRights -match 'GenericAll') )
+            ) {
                 $Issue = [pscustomobject]@{
                     Forest                = $_.CanonicalName.split('/')[0]
                     Name                  = $_.Name
@@ -838,7 +853,12 @@ function Find-ESC3C1 {
             else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
-            if ( ($SID -notmatch $SafeUsers) -and ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -or ($entry.ActiveDirectoryRights -match 'GenericAll') ) ) {
+            if (
+                ($SID -notmatch $SafeUsers) -and
+                ( ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -and
+                    ( $entry.ObjectType -match '0e10c968-78fb-11d2-90d4-00c04f79dc55|00000000-0000-0000-0000-000000000000' ) ) -or
+                ($entry.ActiveDirectoryRights -match 'GenericAll') )
+            ) {
                 $Issue = [pscustomobject]@{
                     Forest                = $_.CanonicalName.split('/')[0]
                     Name                  = $_.Name
@@ -931,7 +951,12 @@ function Find-ESC3C2 {
             else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
-            if ( ($SID -notmatch $SafeUsers) -and ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -or ($entry.ActiveDirectoryRights -match 'GenericAll') ) ) {
+            if (
+                ($SID -notmatch $SafeUsers) -and
+                ( ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -and
+                    ( $entry.ObjectType -match '0e10c968-78fb-11d2-90d4-00c04f79dc55|00000000-0000-0000-0000-000000000000' ) ) -or
+                ($entry.ActiveDirectoryRights -match 'GenericAll') )
+            ) {
                 $Issue = [pscustomobject]@{
                     Forest                = $_.CanonicalName.split('/')[0]
                     Name                  = $_.Name
@@ -1813,7 +1838,12 @@ function Find-ESC9 {
             else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
-            if ( ($SID -notmatch $SafeUsers) -and ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -or ($entry.ActiveDirectoryRights -match 'GenericAll') ) ) {
+            if (
+                ($SID -notmatch $SafeUsers) -and
+                ( ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -and
+                    ( $entry.ObjectType -match '0e10c968-78fb-11d2-90d4-00c04f79dc55|00000000-0000-0000-0000-000000000000' ) ) -or
+                ($entry.ActiveDirectoryRights -match 'GenericAll') )
+            ) {
                 $Issue = [pscustomobject]@{
                     Forest                = $_.CanonicalName.split('/')[0]
                     Name                  = $_.Name
@@ -3076,7 +3106,6 @@ function Set-AdditionalCAProperty {
     process {
         $ADCSObjects | Where-Object objectClass -Match 'pKIEnrollmentService' | ForEach-Object {
             $CAEnrollmentEndpoint = @()
-            #[array]$CAEnrollmentEndpoint = $_.'msPKI-Enrollment-Servers' | Select-String 'http.*' | ForEach-Object { $_.Matches[0].Value }
             foreach ($directory in @('certsrv/', "$($_.Name)_CES_Kerberos/service.svc", "$($_.Name)_CES_Kerberos/service.svc/CES", 'ADPolicyProvider_CEP_Kerberos/service.svc', 'certsrv/mscep/')) {
                 $URL = "://$($_.dNSHostName)/$directory"
                 try {
@@ -3086,7 +3115,7 @@ function Set-AdditionalCAProperty {
                     $Cache = [System.Net.CredentialCache]::New()
                     $Cache.Add([System.Uri]::new($FullURL), $Auth, [System.Net.CredentialCache]::DefaultNetworkCredentials)
                     $Request.Credentials = $Cache
-                    $Request.Timeout = 1000
+                    $Request.Timeout = 100
                     $Request.GetResponse() | Out-Null
                     $CAEnrollmentEndpoint += @{
                         'URL'  = $FullURL
@@ -3101,7 +3130,7 @@ function Set-AdditionalCAProperty {
                         $Cache = [System.Net.CredentialCache]::New()
                         $Cache.Add([System.Uri]::new($FullURL), $Auth, [System.Net.CredentialCache]::DefaultNetworkCredentials)
                         $Request.Credentials = $Cache
-                        $Request.Timeout = 1000
+                        $Request.Timeout = 100
                         $Request.GetResponse() | Out-Null
                         $CAEnrollmentEndpoint += @{
                             'URL'  = $FullURL
@@ -3116,7 +3145,7 @@ function Set-AdditionalCAProperty {
                             $Cache = [System.Net.CredentialCache]::New()
                             $Cache.Add([System.Uri]::new($FullURL), $Auth, [System.Net.CredentialCache]::DefaultNetworkCredentials)
                             $Request.Credentials = $Cache
-                            $Request.Timeout = 1000
+                            $Request.Timeout = 100
                             $Request.GetResponse() | Out-Null
                             $CAEnrollmentEndpoint += @{
                                 'URL'  = $FullURL
