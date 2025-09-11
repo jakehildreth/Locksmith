@@ -364,6 +364,10 @@ function Set-RiskRating {
                             $Principals += $OtherIssue.IdentityReference.Value
                             $OtherIssueRisk += 1
                         }
+                        else {
+                            $Principals += $OtherIssue.IdentityReference.Value
+                            $OtherIssueRisk += 0.1
+                        }
                         $CheckedESC5Templates.$($OtherIssue.Name) = $Principals
                     } # forech ($OtherIssue)
                     if ($OtherIssueRisk -ge 2) {
