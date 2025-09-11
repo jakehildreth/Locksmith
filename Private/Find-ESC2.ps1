@@ -46,7 +46,12 @@
             } else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
-            if ( ($SID -notmatch $SafeUsers) -and ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -or ($entry.ActiveDirectoryRights -match 'GenericAll') ) ) {
+            if (
+                ($SID -notmatch $SafeUsers) -and
+                ( ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -and
+                    ( $entry.ObjectType -match '0e10c968-78fb-11d2-90d4-00c04f79dc55|00000000-0000-0000-0000-000000000000' ) ) -or
+                ($entry.ActiveDirectoryRights -match 'GenericAll') )
+            ) {
                 $Issue = [pscustomobject]@{
                     Forest                = $_.CanonicalName.split('/')[0]
                     Name                  = $_.Name
