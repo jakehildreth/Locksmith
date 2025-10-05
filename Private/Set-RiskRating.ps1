@@ -415,11 +415,11 @@ function Set-RiskRating {
 
     # Convert Value to Name
     $RiskName = switch ($RiskValue) {
-        { $_ -le 1 } { 'Informational' }
-        2 { 'Low' }
-        3 { 'Medium' }
-        4 { 'High' }
-        { $_ -ge 5 } { 'Critical' }
+        { $_ -le 1 } { 'Informational' ; break }
+        { $_ -lt 3 } { 'Low' ; break }
+        { $_ -lt 4 } { 'Medium' ; break }
+        { $_ -lt 5 } { 'High' ; break }
+        { $_ -ge 5 } { 'Critical' ; break }
     }
 
     # Write Risk attributes

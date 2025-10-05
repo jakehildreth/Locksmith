@@ -661,7 +661,7 @@ function Find-ESC16 {
             if ($_.DisableExtensionList -eq 'Yes') {
                 $Issue.Issue = @"
 The Certification Authority (CA) $($_.CAFullName) has the szOID_NTDS_CA_SECURITY_EXT security extension disabled. When
-this extension is disabled, every certificate issued from this template will be unable to reliably map a certificate to a
+this extension is disabled, every certificate issued by this CA will be unable to reliably map a certificate to a
 user or computer account's SID for authentication.
 
 More info:
@@ -3805,19 +3805,19 @@ function Set-RiskRating {
     # Convert Value to Name
     $RiskName = switch ($RiskValue) {
         { $_ -le 1 } {
-            'Informational' 
+            'Informational' ; break 
         }
-        2 {
-            'Low' 
+        { $_ -lt 3 } {
+            'Low' ; break 
         }
-        3 {
-            'Medium' 
+        { $_ -lt 4 } {
+            'Medium' ; break 
         }
-        4 {
-            'High' 
+        { $_ -lt 5 } {
+            'High' ; break 
         }
         { $_ -ge 5 } {
-            'Critical' 
+            'Critical' ; break 
         }
     }
 
@@ -5003,7 +5003,7 @@ function Invoke-Locksmith {
         [System.Management.Automation.PSCredential]$Credential
     )
 
-    $Version = '2025.9.8'
+    $Version = '2025.10.5'
     $LogoPart1 = @'
     _       _____  _______ _     _ _______ _______ _____ _______ _     _
     |      |     | |       |____/  |______ |  |  |   |      |    |_____|
