@@ -1,6 +1,8 @@
 ﻿param (
     # A CalVer string if you need to manually override the default yyyy.M.d version string.
-    [string]$CalVer
+    [string]$CalVer,
+    [switch]$PublishToPSGallery,
+    [string]$PSGalleryAPIPath
 )
 
 if (Get-Module -Name 'PSPublishModule' -ListAvailable) {
@@ -9,6 +11,7 @@ if (Get-Module -Name 'PSPublishModule' -ListAvailable) {
     Write-Information 'PSPublishModule is not installed. Attempting installation.'
     try {
         Install-Module -Name Pester -AllowClobber -Scope CurrentUser -SkipPublisherCheck -Force
+        Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
         Install-Module -Name PSPublishModule -AllowClobber -Scope CurrentUser -Force
     } catch {
         Write-Error 'PSPublishModule installation failed.'
@@ -23,7 +26,7 @@ $CopyrightYear = if ($Calver) { $CalVer.Split('.')[0] } else { (Get-Date -Format
 Build-Module -ModuleName 'Locksmith' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = if ($Calver) { $CalVer } else { (Get-Date -Format yyyy.M.d) }
+        ModuleVersion        = if ($Calver) { $CalVer } else { (Get-Date -Format yyyy.M.d.Hmm -AsUTC) }
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = 'b1325b42-8dc4-4f17-aa1f-dcb5984ca14a'
         Author               = 'Jake Hildreth'
@@ -137,9 +140,11 @@ Build-Module -ModuleName 'Locksmith' {
     $PostScriptMerge = { Invoke-Locksmith -Mode $Mode -Scans $Scans }
 
     # New-ConfigurationArtefact -Type Packed -Enable -Path "$PSScriptRoot\..\Artefacts\Packed" -ArtefactName '<ModuleName>.zip'
-    # New-ConfigurationArtefact -Type Script -Enable -Path "$PSScriptRoot\..\Artefacts\Script" -PreScriptMerge $PreScriptMerge -PostScriptMerge $PostScriptMerge -ScriptName 'Invoke-<ModuleName>.ps1'
-    # New-ConfigurationArtefact -Type ScriptPacked -Enable -Path "$PSScriptRoot\..\Artefacts\ScriptPacked" -PreScriptMerge $PreScriptMerge -PostScriptMerge $PostScriptMerge -ScriptName 'Invoke-<ModuleName>.ps1' -ArtefactName 'Invoke-<ModuleName>.zip'
-    New-ConfigurationPublish -Type PowerShellGallery -FilePath 'C:\Users\Administrator.horse\Documents\API Keys\PSGallery.txt'
+    New-ConfigurationArtefact -Type Script -Enable -Path "$PSScriptRoot\..\Artefacts\Script" -PreScriptMerge $PreScriptMerge -PostScriptMerge $PostScriptMerge -ScriptName 'Invoke-<ModuleName>.ps1'
+    New-ConfigurationArtefact -Type ScriptPacked -Enable -Path "$PSScriptRoot\..\Artefacts\ScriptPacked" -PreScriptMerge $PreScriptMerge -PostScriptMerge $PostScriptMerge -ScriptName 'Invoke-<ModuleName>.ps1' -ArtefactName 'Invoke-<ModuleName>.zip'
+    if($PublishToPSGallery) {   
+        New-ConfigurationPublish -Type PowerShellGallery -FilePath $PSGalleryAPIPath -Enabled:$false
+    }
 }
 
 Copy-Item "$PSScriptRoot\..\Artefacts\Script\Invoke-Locksmith.ps1" "$PSScriptRoot\..\"
