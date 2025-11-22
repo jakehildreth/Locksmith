@@ -143,7 +143,7 @@ Build-Module -ModuleName 'Locksmith' {
     New-ConfigurationArtefact -Type Script -Enable -Path "$PSScriptRoot\..\Artefacts\Script" -PreScriptMerge $PreScriptMerge -PostScriptMerge $PostScriptMerge -ScriptName 'Invoke-<ModuleName>.ps1'
     New-ConfigurationArtefact -Type ScriptPacked -Enable -Path "$PSScriptRoot\..\Artefacts\ScriptPacked" -PreScriptMerge $PreScriptMerge -PostScriptMerge $PostScriptMerge -ScriptName 'Invoke-<ModuleName>.ps1' -ArtefactName 'Invoke-<ModuleName>.zip'
     if($PublishToPSGallery) {   
-        New-ConfigurationPublish -Type PowerShellGallery -FilePath $PSGalleryAPIPath -Enabled:$false
+        New-ConfigurationPublish -Type PowerShellGallery -FilePath $PSGalleryAPIPath -Enabled:$true
     }
 }
 
