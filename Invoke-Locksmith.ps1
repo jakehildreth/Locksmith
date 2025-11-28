@@ -5,6 +5,11 @@ param (
     [ValidateSet(0, 1, 2, 3, 4)]
     [int]$Mode = 0,
 
+    # The directory to save the output in (defaults to the current working directory).
+    [Parameter()]
+    [ValidateScript({ Test-Path -Path $_ -PathType Container })]
+    [string]$OutputPath = $PWD,
+
     # The scans to run. Defaults to 'All'.
     [Parameter()]
     [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC9', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'ESC16', 'All', 'PromptMe')]
@@ -41,8 +46,7 @@ function Convert-IdentityReferenceToSid {
     $Principal = New-Object System.Security.Principal.NTAccount($Object)
     if ($Principal -match '^(S-1|O:)') {
         $SID = $Principal
-    }
-    else {
+    } else {
         $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
     }
     return $SID
@@ -259,8 +263,7 @@ function Find-ESC1 {
             $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
             if ($Principal -match '^(S-1|O:)') {
                 $SID = $Principal
-            }
-            else {
+            } else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
             if (
@@ -459,8 +462,7 @@ function Find-ESC13 {
                         $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
                         if ($Principal -match '^(S-1|O:)') {
                             $SID = $Principal
-                        }
-                        else {
+                        } else {
                             $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
                         }
                         if (
@@ -557,8 +559,7 @@ function Find-ESC15 {
             $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
             if ($Principal -match '^(S-1|O:)') {
                 $SID = $Principal
-            }
-            else {
+            } else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
             if (
@@ -740,8 +741,7 @@ function Find-ESC2 {
             $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
             if ($Principal -match '^(S-1|O:)') {
                 $SID = $Principal
-            }
-            else {
+            } else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
             if (
@@ -849,8 +849,7 @@ function Find-ESC3C1 {
             $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
             if ($Principal -match '^(S-1|O:)') {
                 $SID = $Principal
-            }
-            else {
+            } else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
             if (
@@ -947,8 +946,7 @@ function Find-ESC3C2 {
             $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
             if ($Principal -match '^(S-1|O:)') {
                 $SID = $Principal
-            }
-            else {
+            } else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
             if (
@@ -1085,8 +1083,7 @@ function Find-ESC4 {
             $Principal = [System.Security.Principal.NTAccount]::New($_.nTSecurityDescriptor.Owner)
             if ($Principal -match '^(S-1|O:)') {
                 $SID = $Principal
-            }
-            else {
+            } else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
         }
@@ -1134,8 +1131,7 @@ Set-ACL -Path 'AD:$($_.DistinguishedName)' -AclObject `$ACL
                 $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
                 if ($Principal -match '^(S-1|O:)') {
                     $SID = $Principal
-                }
-                else {
+                } else {
                     $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
                 }
             }
@@ -1273,8 +1269,7 @@ function Find-ESC5 {
             $Principal = New-Object System.Security.Principal.NTAccount($_.nTSecurityDescriptor.Owner)
             if ($Principal -match '^(S-1|O:)') {
                 $SID = $Principal
-            }
-            else {
+            } else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
         }
@@ -1283,8 +1278,7 @@ function Find-ESC5 {
         $DangerousOwner = $false
         if ( ($_.objectClass -eq 'computer') -and ($SID -match '-512$') ) {
             $DangerousOwner = $false
-        }
-        elseif ( ($_.objectClass -ne 'pKICertificateTemplate') -and ($SID -notmatch $SafeOwners) ) {
+        } elseif ( ($_.objectClass -ne 'pKICertificateTemplate') -and ($SID -notmatch $SafeOwners) ) {
             $DangerousOwner = $true
         }
 
@@ -1379,8 +1373,7 @@ Set-ACL -Path 'AD:$($_.DistinguishedName)' -AclObject `$ACL"
             $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
             if ($Principal -match '^(S-1|O:)') {
                 $SID = $Principal
-            }
-            else {
+            } else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
 
@@ -1834,8 +1827,7 @@ function Find-ESC9 {
             $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
             if ($Principal -match '^(S-1|O:)') {
                 $SID = $Principal
-            }
-            else {
+            } else {
                 $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
             }
             if (
@@ -1969,37 +1961,36 @@ function Format-Result {
             switch ($UniqueIssue) {
                 { $_ -in @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC16') } {
                     $Issue |
-                        Format-Table Technique, @{l = 'CA Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Issue -Wrap |
-                            Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
+                    Format-Table Technique, @{l = 'CA Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Issue -Wrap |
+                    Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
                 }
                 { $_ -in @('ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC9', 'ESC13', 'ESC15/EKUwu') } {
                     $Issue |
-                        Format-Table Technique, @{l = 'Template Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Enabled, Issue -Wrap |
-                            Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
+                    Format-Table Technique, @{l = 'Template Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Enabled, Issue -Wrap |
+                    Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
                 }
                 'ESC5' {
                     $Issue |
-                        Format-Table Technique, @{l = 'Object Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Issue -Wrap |
-                            Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
+                    Format-Table Technique, @{l = 'Object Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Issue -Wrap |
+                    Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
                 }
             }
-        }
-        elseif ($Mode -eq 1) {
+        } elseif ($Mode -eq 1) {
             switch ($UniqueIssue) {
                 { $_ -in @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC16') } {
                     $Issue |
-                        Format-List Technique, @{l = 'CA Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, DistinguishedName, Issue, Fix, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } |
-                            Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
+                    Format-List Technique, @{l = 'CA Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, DistinguishedName, Issue, Fix, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } |
+                    Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
                 }
                 { $_ -in @('ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC9', 'ESC13', 'ESC15/EKUwu') } {
                     $Issue |
-                        Format-List Technique, @{l = 'Template Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, DistinguishedName, Enabled, EnabledOn, Issue, Fix, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } |
-                            Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
+                    Format-List Technique, @{l = 'Template Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, DistinguishedName, Enabled, EnabledOn, Issue, Fix, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } |
+                    Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
                 }
                 'ESC5' {
                     $Issue |
-                        Format-List Technique, @{l = 'Object Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, DistinguishedName, objectClass, Issue, Fix, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } |
-                            Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
+                    Format-List Technique, @{l = 'Object Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, DistinguishedName, objectClass, Issue, Fix, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } |
+                    Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
                 }
             }
         }
@@ -2037,8 +2028,7 @@ function Get-ADCSObject {
         if ($Credential) {
             $ADRoot = (Get-ADRootDSE -Credential $Credential -Server $forest).defaultNamingContext
             Get-ADObject -Filter * -SearchBase "CN=Public Key Services,CN=Services,CN=Configuration,$ADRoot" -SearchScope 2 -Properties * -Credential $Credential
-        }
-        else {
+        } else {
             $ADRoot = (Get-ADRootDSE -Server $forest).defaultNamingContext
             Get-ADObject -Filter * -SearchBase "CN=Public Key Services,CN=Services,CN=Configuration,$ADRoot" -SearchScope 2 -Properties *
         }
@@ -2089,18 +2079,15 @@ function Get-CAHostObject {
             $ADCSObjects | Where-Object objectClass -Match 'pKIEnrollmentService' | ForEach-Object {
                 if ($_.CAHostDistinguishedName) {
                     Get-ADObject $_.CAHostDistinguishedName -Properties * -Server $ForestGC -Credential $Credential 
-                }
-                else {
+                } else {
                     Write-Warning "Get-CAHostObject: Unable to get information from $($_.DisplayName)" 
                 }
             }
-        }
-        else {
+        } else {
             $ADCSObjects | Where-Object objectClass -Match 'pKIEnrollmentService' | ForEach-Object {
                 if ($_.CAHostDistinguishedName) {
                     Get-ADObject -Identity $_.CAHostDistinguishedName -Properties * -Server $ForestGC 
-                }
-                else {
+                } else {
                     Write-Warning "Get-CAHostObject: Unable to get information from $($_.DisplayName)" 
                 }
             }
@@ -2131,12 +2118,10 @@ function Get-RestrictedAdminModeSetting {
         $Creds = (Get-ItemProperty -Path $Path).DisableRestrictedAdminOutboundCreds
         if ($RAM -eq '0' -and $Creds -eq '1') {
             return $true
-        }
-        else {
+        } else {
             return $false
         }
-    }
-    catch {
+    } catch {
         return $false
     }
 }
@@ -2188,15 +2173,12 @@ function Get-Target {
 
     if ($Forest) {
         $Targets = $Forest
-    }
-    elseif ($InputPath) {
+    } elseif ($InputPath) {
         $Targets = Get-Content $InputPath
-    }
-    else {
+    } else {
         if ($Credential) {
             $Targets = (Get-ADForest -Credential $Credential).Name
-        }
-        else {
+        } else {
             $Targets = (Get-ADForest).Name
         }
     }
@@ -2229,17 +2211,14 @@ function Install-RSATADPowerShell {
                     Write-Host "Beginning the ActiveDirectory PowerShell module installation, please wait.."
                     # Attempt to install ActiveDirectory PowerShell module for Windows Server OSes, works with Windows Server 2012 R2 through Windows Server 2022
                     Install-WindowsFeature -Name RSAT-AD-PowerShell
-                }
-                catch {
+                } catch {
                     Write-Error 'Could not install ActiveDirectory PowerShell module. This module needs to be installed to run Locksmith successfully.'
                 }
-            }
-            else {
+            } else {
                 Write-Host "ActiveDirectory PowerShell module NOT installed. Please install to run Locksmith successfully.`n" -ForegroundColor Yellow
                 break;
             }
-        }
-        else {
+        } else {
             Write-Warning "The Active Directory PowerShell module is not installed."
             Write-Host "If you continue, Locksmith will attempt to install the Active Directory PowerShell module for you.`n" -ForegroundColor Yellow
             Write-Host "`nCOMMAND: Add-WindowsCapability -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0 -Online`n" -ForegroundColor Cyan
@@ -2253,18 +2232,15 @@ function Install-RSATADPowerShell {
                     Write-Host "Beginning the ActiveDirectory PowerShell module installation, please wait.."
                     # Attempt to install ActiveDirectory PowerShell module for Windows Desktop OSes
                     Add-WindowsCapability -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0 -Online
-                }
-                catch {
+                } catch {
                     Write-Error 'Could not install ActiveDirectory PowerShell module. This module needs to be installed to run Locksmith successfully.'
                 }
-            }
-            else {
+            } else {
                 Write-Host "ActiveDirectory PowerShell module NOT installed. Please install to run Locksmith successfully.`n" -ForegroundColor Yellow
                 break;
             }
         }
-    }
-    else {
+    } else {
         Write-Warning -Message "The ActiveDirectory PowerShell module is required for Locksmith, but is not installed. Please launch an elevated PowerShell session to have this module installed for you automatically."
         # The goal here is to exit the script without closing the PowerShell window. Need to test.
         return
@@ -2342,8 +2318,7 @@ function Invoke-Remediation {
             ESC13          = $ESC13
         }
         Export-RevertScript @params
-    }
-    catch {
+    } catch {
         Write-Warning 'Creation of Invoke-RevertLocksmith.ps1 failed.'
         Write-Host 'Continue with this operation? [Y] Yes ' -NoNewline
         Write-Host '[N] ' -ForegroundColor Yellow -NoNewline
@@ -2352,8 +2327,7 @@ function Invoke-Remediation {
         $WarningError = Read-Host
         if ($WarningError -like 'y') {
             # Continue
-        }
-        else {
+        } else {
             break
         }
     }
@@ -2380,12 +2354,10 @@ function Invoke-Remediation {
             if ($WarningError -like 'y') {
                 try {
                     Invoke-Command -ScriptBlock $FixBlock
-                }
-                catch {
+                } catch {
                     Write-Error 'Could not modify AD CS auditing. Are you a local admin on the CA host?'
                 }
-            }
-            else {
+            } else {
                 Write-Host "SKIPPED!`n" -ForegroundColor Yellow
             }
         }
@@ -2413,12 +2385,10 @@ function Invoke-Remediation {
             if ($WarningError -like 'y') {
                 try {
                     Invoke-Command -ScriptBlock $FixBlock
-                }
-                catch {
+                } catch {
                     Write-Error 'Could not enable Manager Approval. Are you an Active Directory or AD CS admin?'
                 }
-            }
-            else {
+            } else {
                 Write-Host "SKIPPED!`n" -ForegroundColor Yellow
             }
         }
@@ -2446,12 +2416,10 @@ function Invoke-Remediation {
             if ($WarningError -like 'y') {
                 try {
                     Invoke-Command -ScriptBlock $FixBlock
-                }
-                catch {
+                } catch {
                     Write-Error 'Could not enable Manager Approval. Are you an Active Directory or AD CS admin?'
                 }
-            }
-            else {
+            } else {
                 Write-Host "SKIPPED!`n" -ForegroundColor Yellow
             }
         }
@@ -2479,12 +2447,10 @@ function Invoke-Remediation {
             if ($WarningError -like 'y') {
                 try {
                     Invoke-Command -ScriptBlock $FixBlock
-                }
-                catch {
+                } catch {
                     Write-Error 'Could not change Owner. Are you an Active Directory admin?'
                 }
-            }
-            else {
+            } else {
                 Write-Host "SKIPPED!`n" -ForegroundColor Yellow
             }
         }
@@ -2512,12 +2478,10 @@ function Invoke-Remediation {
             if ($WarningError -like 'y') {
                 try {
                     Invoke-Command -ScriptBlock $FixBlock
-                }
-                catch {
+                } catch {
                     Write-Error 'Could not change Owner. Are you an Active Directory admin?'
                 }
-            }
-            else {
+            } else {
                 Write-Host "SKIPPED!`n" -ForegroundColor Yellow
             }
         }
@@ -2546,12 +2510,10 @@ function Invoke-Remediation {
             if ($WarningError -like 'y') {
                 try {
                     Invoke-Command -ScriptBlock $FixBlock
-                }
-                catch {
+                } catch {
                     Write-Error 'Could not disable the EDITF_ATTRIBUTESUBJECTALTNAME2 flag. Are you an Active Directory or AD CS admin?'
                 }
-            }
-            else {
+            } else {
                 Write-Host "SKIPPED!`n" -ForegroundColor Yellow
             }
         }
@@ -2581,12 +2543,10 @@ function Invoke-Remediation {
             if ($WarningError -like 'y') {
                 try {
                     Invoke-Command -ScriptBlock $FixBlock
-                }
-                catch {
+                } catch {
                     Write-Error 'Could not enable the IF_ENFORCEENCRYPTICERTREQUEST flag. Are you an Active Directory or AD CS admin?'
                 }
-            }
-            else {
+            } else {
                 Write-Host "SKIPPED!`n" -ForegroundColor Yellow
             }
         }
@@ -2615,12 +2575,10 @@ function Invoke-Remediation {
             if ($WarningError -like 'y') {
                 try {
                     Invoke-Command -ScriptBlock $FixBlock
-                }
-                catch {
+                } catch {
                     Write-Error 'Could not enable Manager Approval. Are you an Active Directory or AD CS admin?'
                 }
-            }
-            else {
+            } else {
                 Write-Host "SKIPPED!`n" -ForegroundColor Yellow
             }
         }
@@ -2702,11 +2660,9 @@ function Invoke-Scans {
         # Check for Out-GridView or Out-ConsoleGridView
         if ((Get-Command Out-ConsoleGridView -ErrorAction SilentlyContinue) -and ($PSVersionTable.PSVersion.Major -ge 7)) {
             [array]$Scans = ($Dictionary | Select-Object Name, Category, Subcategory | Out-ConsoleGridView -OutputMode Multiple -Title $GridViewTitle).Name | Sort-Object -Property Name
-        }
-        elseif (Get-Command -Name Out-GridView -ErrorAction SilentlyContinue) {
+        } elseif (Get-Command -Name Out-GridView -ErrorAction SilentlyContinue) {
             [array]$Scans = ($Dictionary | Select-Object Name, Category, Subcategory | Out-GridView -PassThru -Title $GridViewTitle).Name | Sort-Object -Property Name
-        }
-        else {
+        } else {
             # To Do: Check for admin and prompt to install features/modules or revert to 'All'.
             Write-Information "Out-GridView and Out-ConsoleGridView were not found on your system. Defaulting to 'All'."
             $Scans = 'All'
@@ -3085,8 +3041,7 @@ function Set-AdditionalCAProperty {
 '@
                 Add-Type -TypeDefinition $code -Language CSharp
                 [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
-            }
-            else {
+            } else {
                 Add-Type @'
                     using System.Net;
                     using System.Security.Cryptography.X509Certificates;
@@ -3121,8 +3076,7 @@ function Set-AdditionalCAProperty {
                         'URL'  = $FullURL
                         'Auth' = $Auth
                     }
-                }
-                catch {
+                } catch {
                     try {
                         $Auth = 'NTLM'
                         $FullURL = "https$URL"
@@ -3136,8 +3090,7 @@ function Set-AdditionalCAProperty {
                             'URL'  = $FullURL
                             'Auth' = $Auth
                         }
-                    }
-                    catch {
+                    } catch {
                         try {
                             $Auth = 'Negotiate'
                             $FullURL = "https$URL"
@@ -3151,8 +3104,7 @@ function Set-AdditionalCAProperty {
                                 'URL'  = $FullURL
                                 'Auth' = $Auth
                             }
-                        }
-                        catch {
+                        } catch {
                             Write-Debug "There may have been an error or something nothing found. $_"
                         }
                     }
@@ -3163,76 +3115,63 @@ function Set-AdditionalCAProperty {
             if ($Credential) {
                 $CAHostDistinguishedName = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Server $ForestGC -Credential $Credential).DistinguishedName
                 $CAHostFQDN = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Properties DnsHostname -Server $ForestGC -Credential $Credential).DnsHostname
-            }
-            else {
+            } else {
                 $CAHostDistinguishedName = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Server $ForestGC ).DistinguishedName
                 $CAHostFQDN = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Properties DnsHostname -Server $ForestGC).DnsHostname
             }
             $ping = if ($CAHostFQDN) {
                 Test-Connection -ComputerName $CAHostFQDN -Count 1 -Quiet 
-            }
-            else {
+            } else {
                 Write-Warning "Unable to resolve $($_.Name) Fully Qualified Domain Name (FQDN)" 
             }
             if ($ping) {
                 try {
                     if ($Credential) {
                         $CertutilAudit = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { certutil -config $using:CAFullName -getreg CA\AuditFilter }
-                    }
-                    else {
+                    } else {
                         $CertutilAudit = certutil -config $CAFullName -getreg CA\AuditFilter
                     }
-                }
-                catch {
+                } catch {
                     $AuditFilter = 'Failure'
                 }
                 try {
                     if ($Credential) {
                         $CertutilFlag = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { certutil -config $using:CAFullName -getreg policy\EditFlags }
-                    }
-                    else {
+                    } else {
                         $CertutilFlag = certutil -config $CAFullName -getreg policy\EditFlags
                     }
-                }
-                catch {
+                } catch {
                     $SANFlag = 'Failure'
                 }
                 try {
                     if ($Credential) {
                         $CertutilInterfaceFlag = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { certutil -config $using:CAFullName -getreg CA\InterfaceFlags }
-                    }
-                    else {
+                    } else {
                         $CertutilInterfaceFlag = certutil -config $CAFullName -getreg CA\InterfaceFlags
                     }
-                }
-                catch {
+                } catch {
                     $InterfaceFlag = 'Failure'
                 }
                 try {
                     if ($Credential) {
                         $CertutilSecurity = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { certutil -config $using:CAFullName -getreg CA\Security }
-                    }
-                    else {
+                    } else {
                         $CertutilSecurity = certutil -config $CAFullName -getreg CA\Security
                     }
-                }
-                catch {
+                } catch {
                     $CAAdministrator = 'Failure'
                     $CertificateManager = 'Failure'
                 }
                 try {
                     if ($Credential) {
                         $CertutilDisableExtensionList = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { certutil -config $using:CAFullName -getreg policy\DisableExtensionList }
-                    }
-                    else {
+                    } else {
                         $CertutilDisableExtensionList = certutil -config $CAFullName -getreg policy\DisableExtensionList
                     }
-                }
-                catch {
+                } catch {
                     $CertutilDisableExtensionList = 'Failure'
                 }
-            }
-            else {
+            } else {
                 $AuditFilter = 'CA Unavailable'
                 $SANFlag = 'CA Unavailable'
                 $InterfaceFlag = 'CA Unavailable'
@@ -3244,13 +3183,11 @@ function Set-AdditionalCAProperty {
                 try {
                     [string]$AuditFilter = $CertutilAudit | Select-String 'AuditFilter REG_DWORD = ' | Select-String '\('
                     $AuditFilter = $AuditFilter.split('(')[1].split(')')[0]
-                }
-                catch {
+                } catch {
                     try {
                         [string]$AuditFilter = $CertutilAudit | Select-String 'AuditFilter REG_DWORD = '
                         $AuditFilter = $AuditFilter.split('=')[1].trim()
-                    }
-                    catch {
+                    } catch {
                         $AuditFilter = 'Never Configured'
                     }
                 }
@@ -3259,8 +3196,7 @@ function Set-AdditionalCAProperty {
                 [string]$SANFlag = $CertutilFlag | Select-String ' EDITF_ATTRIBUTESUBJECTALTNAME2 -- 40000 \('
                 if ($SANFlag) {
                     $SANFlag = 'Yes'
-                }
-                else {
+                } else {
                     $SANFlag = 'No'
                 }
             }
@@ -3268,8 +3204,7 @@ function Set-AdditionalCAProperty {
                 [string]$InterfaceFlag = $CertutilInterfaceFlag | Select-String ' IF_ENFORCEENCRYPTICERTREQUEST -- 200 \('
                 if ($InterfaceFlag) {
                     $InterfaceFlag = 'Yes'
-                }
-                else {
+                } else {
                     $InterfaceFlag = 'No'
                 }
             }
@@ -3289,8 +3224,7 @@ function Set-AdditionalCAProperty {
                 [string]$DisableExtensionList = $CertutilDisableExtensionList | Select-String '1\.3\.6\.1\.4\.1\.311\.25\.2'
                 if ($DisableExtensionList) {
                     $DisableExtensionList = 'Yes'
-                }
-                else {
+                } else {
                     $DisableExtensionList = 'No'
                 }
             }
@@ -3431,13 +3365,11 @@ function Set-RiskRating {
                 # Authenticated Users, Domain Users, Domain Computers etc. are very risky
                 $RiskValue += 2
                 $RiskScoring += 'Very Large Group: +2'
-            }
-            elseif ($IdentityReferenceObjectClass -eq 'group') {
+            } elseif ($IdentityReferenceObjectClass -eq 'group') {
                 # Groups are riskier than individual principals
                 $RiskValue += 1
                 $RiskScoring += 'Group: +1'
-            }
-            elseif ($Issue.IdentityReferenceSID -notmatch $UnsafeUsers -and
+            } elseif ($Issue.IdentityReferenceSID -notmatch $UnsafeUsers -and
                 $Issue.IdentityReferenceSID -notmatch $SafeUsers -and
                 $IdentityReferenceObjectClass -notlike '*ManagedServiceAccount') {
                 $RiskValue += 1
@@ -3472,8 +3404,7 @@ function Set-RiskRating {
             if ($Issue.Enabled) {
                 $RiskValue += 1
                 $RiskScoring += 'Enabled: +1'
-            }
-            else {
+            } else {
                 $RiskValue -= 2
                 $RiskScoring += 'Disabled: -2'
             }
@@ -3494,13 +3425,11 @@ function Set-RiskRating {
             # Authenticated Users, Domain Users, Domain Computers etc. are very risky
             $RiskValue += 2
             $RiskScoring += 'Very Large Group: +2'
-        }
-        elseif ($IdentityReferenceObjectClass -eq 'group') {
+        } elseif ($IdentityReferenceObjectClass -eq 'group') {
             # Groups are riskier than individual principals
             $RiskValue += 1
             $RiskScoring += 'Group: +1'
-        }
-        elseif ($Issue.IdentityReferenceSID -notmatch $UnsafeUsers -and
+        } elseif ($Issue.IdentityReferenceSID -notmatch $UnsafeUsers -and
             $Issue.IdentityReferenceSID -notmatch $SafeUsers -and
             $IdentityReferenceObjectClass -notlike '*ManagedServiceAccount') {
             $RiskValue += 1
@@ -3513,14 +3442,12 @@ function Set-RiskRating {
                 # Safe Users are admins. Authenticating as an admin is bad.
                 $RiskValue += 2
                 $RiskScoring += 'Privileged Principal: +2'
-            }
-            elseif ($IdentityReferenceObjectClass -like '*ManagedServiceAccount') {
+            } elseif ($IdentityReferenceObjectClass -like '*ManagedServiceAccount') {
                 # Managed Service Accounts are *probably* privileged in some way.
                 $RiskValue += 1
                 $RiskScoring += 'Managed Service Account: +1'
             }
-        }
-        elseif ($Issue.IdentityReferenceSID -notmatch $SafeUsers -and $IdentityReferenceObjectClass -notlike '*ManagedServiceAccount') {
+        } elseif ($Issue.IdentityReferenceSID -notmatch $SafeUsers -and $IdentityReferenceObjectClass -notlike '*ManagedServiceAccount') {
             $RiskValue += 1
             $RiskScoring += 'Unprivileged Principal: +1'
         }
@@ -3529,7 +3456,7 @@ function Set-RiskRating {
         # ESC2 and ESC3C1 are more dangerous if ES3C2 templates exist or certain ESC15 templates are enabled
         if ($Issue.Technique -eq 'ESC2' -or ($Issue.Technique -eq 'ESC3' -and $Issue.Condition -eq 1)) {
             $ESC3C2 = Find-ESC3C2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers  -SkipRisk |
-                Where-Object { $_.Enabled -eq $true }
+            Where-Object { $_.Enabled -eq $true }
             $ESC3C2Names = @(($ESC3C2 | Select-Object -Property Name -Unique).Name)
             if ($ESC3C2Names) {
                 $CheckedESC3C2Templates = @{}
@@ -3539,8 +3466,7 @@ function Set-RiskRating {
                     foreach ($esc in $($ESC3C2 | Where-Object Name -EQ $name) ) {
                         if ($CheckedESC3C2Templates.GetEnumerator().Name -contains $esc.Name) {
                             $Principals = $CheckedESC3C2Templates.$($esc.Name)
-                        }
-                        else {
+                        } else {
                             $CheckedESC3C2Templates = @{
                                 $($esc.Name) = @()
                             }
@@ -3551,19 +3477,16 @@ function Set-RiskRating {
                             # Safe Users are admins. Authenticating as an admin is bad.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 2
-                        }
-                        elseif ($escSID -match $UnsafeUsers) {
+                        } elseif ($escSID -match $UnsafeUsers) {
                             # Unsafe Users are large groups that contain practically all principals and likely including admins.
                             # Authenticating as an admin is bad.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 2
-                        }
-                        elseif ($escIdentityReferenceObjectClass -like '*ManagedServiceAccount') {
+                        } elseif ($escIdentityReferenceObjectClass -like '*ManagedServiceAccount') {
                             # Managed Service Accounts are *probably* privileged in some way.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 1
-                        }
-                        elseif ($escIdentityReferenceObjectClass -eq 'group') {
+                        } elseif ($escIdentityReferenceObjectClass -eq 'group') {
                             # Groups are more dangerous than individual principals.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 1
@@ -3579,7 +3502,7 @@ function Set-RiskRating {
 
             # Default 'User' and 'Machine' templates are more dangerous
             $ESC15 = Find-ESC15 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers  -SkipRisk |
-                Where-Object { $_.Enabled -eq $true }
+            Where-Object { $_.Enabled -eq $true }
             $ESC15Names = @(($ESC15 | Where-Object Name -In @('Machine', 'User')).Name)
             if ($ESC15Names) {
                 $CheckedESC15Templates = @{}
@@ -3589,8 +3512,7 @@ function Set-RiskRating {
                     foreach ($esc in $($ESC15 | Where-Object Name -EQ $name) ) {
                         if ($CheckedESC15Templates.GetEnumerator().Name -contains $esc.Name) {
                             $Principals = $CheckedESC15Templates.$($esc.Name)
-                        }
-                        else {
+                        } else {
                             $Principals = @()
                             $CheckedESC15Templates = @{
                                 $($esc.Name) = @()
@@ -3602,19 +3524,16 @@ function Set-RiskRating {
                             # Safe Users are admins. Authenticating as an admin is bad.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 2
-                        }
-                        elseif ($escSID -match $UnsafeUsers) {
+                        } elseif ($escSID -match $UnsafeUsers) {
                             # Unsafe Users are large groups that contain practically all principals and likely including admins.
                             # Authenticating as an admin is bad.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 2
-                        }
-                        elseif ($escIdentityReferenceObjectClass -like '*ManagedServiceAccount') {
+                        } elseif ($escIdentityReferenceObjectClass -like '*ManagedServiceAccount') {
                             # Managed Service Accounts are *probably* privileged in some way.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 1
-                        }
-                        elseif ($escIdentityReferenceObjectClass -eq 'group') {
+                        } elseif ($escIdentityReferenceObjectClass -eq 'group') {
                             # Groups are more dangerous than individual principals.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 1
@@ -3635,7 +3554,7 @@ function Set-RiskRating {
             ($Issue.Technique -eq 'ESC3' -and $Issue.Condition -eq 2)
         ) {
             $ESC2 = Find-ESC2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers  -SkipRisk |
-                Where-Object { $_.Enabled -eq $true }
+            Where-Object { $_.Enabled -eq $true }
             $ESC2Names = @(($ESC2 | Select-Object -Property Name -Unique).Name)
             if ($ESC2Names) {
                 $CheckedESC2Templates = @{}
@@ -3645,8 +3564,7 @@ function Set-RiskRating {
                     foreach ($esc in $($ESC2 | Where-Object Name -EQ $name) ) {
                         if ($CheckedESC2Templates.GetEnumerator().Name -contains $esc.Name) {
                             $Principals = $CheckedESC2Templates.$($esc.Name)
-                        }
-                        else {
+                        } else {
                             $CheckedESC2Templates = @{
                                 $($esc.Name) = @()
                             }
@@ -3657,8 +3575,7 @@ function Set-RiskRating {
                             # Unsafe Users are large groups.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 2
-                        }
-                        elseif ($escIdentityReferenceObjectClass -eq 'group') {
+                        } elseif ($escIdentityReferenceObjectClass -eq 'group') {
                             # Groups are more dangerous than individual principals.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 1
@@ -3673,7 +3590,7 @@ function Set-RiskRating {
             } # end if ($ESC2Names)
 
             $ESC3C1 = Find-ESC3C1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers  -SkipRisk |
-                Where-Object { $_.Enabled -eq $true }
+            Where-Object { $_.Enabled -eq $true }
             $ESC3C1Names = @(($ESC3C1 | Select-Object -Property Name -Unique).Name)
             if ($ESC3C1Names) {
                 $CheckedESC3C1Templates = @{}
@@ -3683,8 +3600,7 @@ function Set-RiskRating {
                     foreach ($esc in $($ESC3C1 | Where-Object Name -EQ $name) ) {
                         if ($CheckedESC3C1Templates.GetEnumerator().Name -contains $esc.Name) {
                             $Principals = $CheckedESC3C1Templates.$($esc.Name)
-                        }
-                        else {
+                        } else {
                             $CheckedESC3C1Templates = @{
                                 $($esc.Name) = @()
                             }
@@ -3695,8 +3611,7 @@ function Set-RiskRating {
                             # Unsafe Users are large groups.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 2
-                        }
-                        elseif ($escIdentityReferenceObjectClass -eq 'group') {
+                        } elseif ($escIdentityReferenceObjectClass -eq 'group') {
                             # Groups are more dangerous than individual principals.
                             $Principals += $esc.IdentityReference.Value
                             $OtherTemplateRisk += 1
@@ -3715,7 +3630,7 @@ function Set-RiskRating {
         # Disabled ESC1, ESC2, ESC3, ESC4, ESC9, and ESC15 templates are more dangerous if there's an ESC5 on one or more CA objects
         if ($Issue.Technique -match 'ESC1|ESC2|ESC3|ESC4|ESC9' -and $Issue.Enabled -eq $false ) {
             $ESC5 = Find-ESC5 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -DangerousRights $DangerousRights -SafeOwners '-519$' -SafeObjectTypes $SafeObjectTypes -SkipRisk |
-                Where-Object { $_.objectClass -eq 'pKIEnrollmentService' }
+            Where-Object { $_.objectClass -eq 'pKIEnrollmentService' }
             $ESC5Names = @(($ESC5 | Select-Object -Property Name -Unique).Name)
             if ($ESC5Names) {
                 $CheckedESC5Templates = @{}
@@ -3725,8 +3640,7 @@ function Set-RiskRating {
                     foreach ($OtherIssue in $($ESC5 | Where-Object Name -EQ $name) ) {
                         if ($CheckedESC5Templates.GetEnumerator().Name -contains $OtherIssue.Name) {
                             $Principals = $CheckedESC5Templates.$($OtherIssue.Name)
-                        }
-                        else {
+                        } else {
                             $CheckedESC5Templates = @{
                                 $($OtherIssue.Name) = @()
                             }
@@ -3737,13 +3651,11 @@ function Set-RiskRating {
                             # Unsafe Users are large groups.
                             $Principals += $OtherIssue.IdentityReference.Value
                             $OtherIssueRisk += 2
-                        }
-                        elseif ($OtherIssueIdentityReferenceObjectClass -eq 'group') {
+                        } elseif ($OtherIssueIdentityReferenceObjectClass -eq 'group') {
                             # Groups are more dangerous than individual principals.
                             $Principals += $OtherIssue.IdentityReference.Value
                             $OtherIssueRisk += 1
-                        }
-                        else {
+                        } else {
                             $Principals += $OtherIssue.IdentityReference.Value
                             $OtherIssueRisk += 0.1
                         }
@@ -3883,8 +3795,7 @@ function Test-IsADAdmin {
         ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole("Enterprise Admins")
     ) {
         return $true
-    }
-    else {
+    } else {
         return $false
     }
 }
@@ -3984,8 +3895,7 @@ function Test-IsMemberOfProtectedUsers {
             # These two are different types. Fixed by referencing $CheckUser.SID later, but should fix here by using one type.
             $CurrentUser = ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name).Split('\')[-1]
             $CheckUser = Get-ADUser $CurrentUser -Properties primaryGroupID
-        }
-        else {
+        } else {
             $CheckUser = Get-ADUser $User -Properties primaryGroupID
         }
 
@@ -4000,13 +3910,11 @@ function Test-IsMemberOfProtectedUsers {
         if ($ProtectedUsers.SID.Value -contains $CheckUser.SID) {
             Write-Verbose "$($CheckUser.Name) ($($CheckUser.DistinguishedName)) is a member of the Protected Users group."
             $true
-        }
-        else {
+        } else {
             # Check if the user's PGID (primary group ID) is set to the Protected Users group RID (525).
             if ( $CheckUser.primaryGroupID -eq '525' ) {
                 $true
-            }
-            else {
+            } else {
                 Write-Verbose "$($CheckUser.Name) ($($CheckUser.DistinguishedName)) is not a member of the Protected Users group."
                 $false
             }
@@ -4082,8 +3990,7 @@ Publishing Date: `t`t $LatestReleaseDate
 Install Module:`t`t Install-Module -Name Locksmith
 Standalone Script:`t $ScriptDownloadLink
 "@
-    }
-    catch {
+    } catch {
         Write-Warning "Unable to find the latest available version of the Locksmith module on GitHub." -WarningAction Continue
         # Find the approximate release date of the installed version. Handles version with or without 'v' prefix.
         $InstalledVersionMonth = [datetime]::Parse(($Version.Replace('v', '')).Replace('.', '-') + "-01")
@@ -4101,13 +4008,11 @@ Standalone Script:`t $ScriptDownloadLink
         Write-Warning -Verbose -Message $OutOfDateMessage -WarningAction Continue
         Write-Information -MessageData $LatestReleaseInfo -InformationAction Continue
         $IsRecentVersion = $false
-    }
-    elseif ( $InstalledVersionReleaseDate -le $OutOfDateDate ) {
+    } elseif ( $InstalledVersionReleaseDate -le $OutOfDateDate ) {
         # If we didn't get the latest release date online, use the estimated release date to check age.
         Write-Warning -Verbose -Message $OutOfDateMessage -WarningAction Continue
         $IsRecentVersion = $false
-    }
-    else {
+    } else {
         # The installed version has not been found to be out of date.
         $IsRecentVersion = $True
     }
@@ -4127,8 +4032,7 @@ function Test-IsRSATInstalled {
     #>
     if (Get-Module -Name 'ActiveDirectory' -ListAvailable) {
         $true
-    }
-    else {
+    } else {
         $false
     }
 }
@@ -4216,8 +4120,7 @@ Get-ADObject `$Object | Set-ADObject -Replace @{'msPKI-Certificate-Name-Flag' = 
 Get-ADObject `$Object | Set-ADObject -Replace @{'msPKI-Enrollment-Flag' = 0}
 "@
         }
-    }
-    elseif ($Enroll -eq 'n') {
+    } elseif ($Enroll -eq 'n') {
         $Issue.Fix = @"
 <#
     1. Open the Certification Templates Console: certtmpl.msc
@@ -4302,8 +4205,7 @@ More info:
         $Issue | Add-Member -NotePropertyName RiskValue -NotePropertyValue 0 -Force
         $Issue | Add-Member -NotePropertyName RiskName -NotePropertyValue 'Informational' -Force
         $Issue | Add-Member -NotePropertyName RiskScoring -NotePropertyValue "$($Issue.IdentityReference) administers this template" -Force
-    }
-    elseif ($Issue.Issue -match 'GenericAll') {
+    } elseif ($Issue.Issue -match 'GenericAll') {
         $RightsToRestore = 0
         while ($RightsToRestore -notin 1..5) {
             [string]$Question = @"
@@ -4593,8 +4495,7 @@ Get-ADObject `$Object | Set-ADObject -Replace @{'msPKI-Enrollment-Flag' = 0}
 TODO
 "@
         }
-    }
-    elseif ($Enroll -eq 'n') {
+    } elseif ($Enroll -eq 'n') {
         $Issue.Fix = @"
 <#
     1. Open the Certification Templates Console: certtmpl.msc
@@ -4755,8 +4656,7 @@ function Write-HostColorized {
             [System.Text.RegularExpressions.RegexOptions] $reOpts =
             if ($CaseSensitive) {
                 'Compiled, ExplicitCapture' 
-            }
-            else {
+            } else {
                 'Compiled, ExplicitCapture, IgnoreCase' 
             }
 
@@ -4773,8 +4673,7 @@ function Write-HostColorized {
                 # Create a Write-Host color-arguments hashtable for splatting.
                 if ($entry.Value -is [array]) {
                     $fg, $bg = $entry.Value # [ConsoleColor[]], from the $PSCmdlet.ParameterSetName -eq 'SingleColor' case.
-                }
-                else {
+                } else {
                     $fg, $bg = $entry.Value -split ','
                 }
                 $colorArgs = @{ }
@@ -4790,8 +4689,7 @@ function Write-HostColorized {
                 $re = New-Object regex -Args `
                 $(if ($SimpleMatch) {
                         ($entry.Key | ForEach-Object { [regex]::Escape($_) }) -join '|'
-                    }
-                    else {
+                    } else {
                         ($entry.Key | ForEach-Object { '({0})' -f $_ }) -join '|'
                     }),
                 $reOpts
@@ -4799,8 +4697,7 @@ function Write-HostColorized {
                 # Add the tansformed entry.
                 $map[$re] = $colorArgs
             }
-        }
-        catch {
+        } catch {
             throw 
         }
 
@@ -4835,13 +4732,11 @@ function Write-HostColorized {
                 if (-not $matchInfos) {
                     # No match found - output uncolored.
                     Write-Host -NoNewline $_
-                }
-                elseif ($WholeLine) {
+                } elseif ($WholeLine) {
                     # Whole line should be colored: Use the first match's color
                     $colorArgs = $matchInfos.ColorArgs
                     Write-Host -NoNewline @colorArgs $_
-                }
-                else {
+                } else {
                     # Parts of the line must be colored:
                     # Process the matches in ascending order of start position.
                     $offset = 0
@@ -4850,8 +4745,7 @@ function Write-HostColorized {
                         if ($mi.Index -lt $offset) {
                             # Ignore subsequent matches that overlap with previous ones whose colored output was already produced.
                             continue
-                        }
-                        elseif ($offset -lt $mi.Index) {
+                        } elseif ($offset -lt $mi.Index) {
                             # Output the part *before* the match uncolored.
                             Write-Host -NoNewline $_.Substring($offset, $mi.Index - $offset)
                         }
@@ -5025,8 +4919,7 @@ function Invoke-Locksmith {
     $RSATInstalled = Test-IsRSATInstalled
     if ($RSATInstalled) {
         # Continue
-    }
-    else {
+    } else {
         Install-RSATADPowerShell
     }
 
@@ -5125,8 +5018,7 @@ function Invoke-Locksmith {
 
     if ($Credential) {
         $Targets = Get-Target -Credential $Credential
-    }
-    else {
+    } else {
         $Targets = Get-Target
     }
 
@@ -5136,8 +5028,7 @@ function Invoke-Locksmith {
         Set-AdditionalCAProperty -ADCSObjects $ADCSObjects -Credential $Credential -ForestGC $ForestGC
         $CAHosts = Get-CAHostObject -ADCSObjects $ADCSObjects -Credential $Credential -ForestGC $ForestGC
         $ADCSObjects += $CAHosts
-    }
-    else {
+    } else {
         $ADCSObjects = Get-ADCSObject -Targets $Targets
         Set-AdditionalCAProperty -ADCSObjects $ADCSObjects -ForestGC $ForestGC
         $CAHosts = Get-CAHostObject -ADCSObjects $ADCSObjects -ForestGC $ForestGC
@@ -5247,8 +5138,7 @@ Invoke-Locksmith -Mode 1
             try {
                 $AllIssues | Select-Object Forest, Technique, Name, Issue, @{l = 'Risk'; e = { $_.RiskName } } | Export-Csv -NoTypeInformation $Output
                 Write-Host "$Output created successfully!`n"
-            }
-            catch {
+            } catch {
                 Write-Host 'Ope! Something broke.'
             }
         }
@@ -5258,8 +5148,7 @@ Invoke-Locksmith -Mode 1
             try {
                 $AllIssues | Select-Object Forest, Technique, Name, DistinguishedName, Issue, Fix, @{l = 'Risk'; e = { $_.RiskName } }, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } | Export-Csv -NoTypeInformation $Output
                 Write-Host "$Output created successfully!`n"
-            }
-            catch {
+            } catch {
                 Write-Host 'Ope! Something broke.'
             }
         }

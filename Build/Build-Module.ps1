@@ -133,7 +133,11 @@ Build-Module -ModuleName 'Locksmith' {
             # The scans to run. Defaults to 'All'.
             [Parameter()]
             [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC9', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'ESC16', 'All', 'PromptMe')]
-            [array]$Scans = 'All'
+            [array]$Scans = 'All',
+
+            [Parameter()]
+            [ValidateScript({ Test-Path -Path $_ -PathType Container })]
+            [string]$OutputPath = $PWD
         )
     }
 
@@ -142,7 +146,7 @@ Build-Module -ModuleName 'Locksmith' {
     # New-ConfigurationArtefact -Type Packed -Enable -Path "$PSScriptRoot\..\Artefacts\Packed" -ArtefactName '<ModuleName>.zip'
     New-ConfigurationArtefact -Type Script -Enable -Path "$PSScriptRoot\..\Artefacts\Script" -PreScriptMerge $PreScriptMerge -PostScriptMerge $PostScriptMerge -ScriptName 'Invoke-<ModuleName>.ps1'
     New-ConfigurationArtefact -Type ScriptPacked -Enable -Path "$PSScriptRoot\..\Artefacts\ScriptPacked" -PreScriptMerge $PreScriptMerge -PostScriptMerge $PostScriptMerge -ScriptName 'Invoke-<ModuleName>.ps1' -ArtefactName 'Invoke-<ModuleName>.zip'
-    if($PublishToPSGallery) {   
+    if ($PublishToPSGallery) {   
         New-ConfigurationPublish -Type PowerShellGallery -FilePath $PSGalleryAPIPath -Enabled:$true
     }
 }
