@@ -26,7 +26,7 @@ $CopyrightYear = if ($Calver) { $CalVer.Split('.')[0] } else { (Get-Date -Format
 Build-Module -ModuleName 'Locksmith' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = if ($Calver) { $CalVer } else { (Get-Date -Format yyyy.M.d.Hmm -AsUTC) }
+        ModuleVersion        = if ($Calver) { $CalVer } else { (Get-Date -Format yyyy.M.d.Hmm) }
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = 'b1325b42-8dc4-4f17-aa1f-dcb5984ca14a'
         Author               = 'Jake Hildreth'
@@ -132,7 +132,7 @@ Build-Module -ModuleName 'Locksmith' {
 
             # The scans to run. Defaults to 'All'.
             [Parameter()]
-            [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC9', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'ESC16', 'All', 'PromptMe')]
+            [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC9', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'ESC16', 'ESC17', 'All', 'PromptMe')]
             [array]$Scans = 'All',
 
             [Parameter()]

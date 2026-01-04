@@ -32,7 +32,7 @@ function Format-Result {
 
     $IssueTable = @{
         DETECT        = 'Auditing Not Fully Enabled'
-        ESC1          = 'ESC1 - Vulnerable Certificate Template - Authentication'
+        ESC1          = 'ESC1 - Vulnerable Certificate Template - Client Authentication'
         ESC2          = 'ESC2 - Vulnerable Certificate Template - Subordinate CA/Any Purpose'
         ESC3          = 'ESC3 - Vulnerable Certificate Template - Enrollment Agent'
         ESC4          = 'ESC4 - Vulnerable Access Control - Certificate Template'
@@ -45,6 +45,7 @@ function Format-Result {
         ESC13         = 'ESC13 - Vulnerable Certificate Template - Group-Linked'
         'ESC15/EKUwu' = 'ESC15 - Vulnerable Certificate Template - Schema V1'
         ESC16         = 'ESC16 - szOID_NTDS_CA_SECURITY_EXT Extension Disabled on CA'
+        ESC17         = 'ESC17 - Vulnerable Certificate Template - Server Authentication'
     }
 
     $RiskTable = @{
@@ -73,7 +74,7 @@ function Format-Result {
                     Format-Table Technique, @{l = 'CA Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Issue -Wrap |
                     Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
                 }
-                { $_ -in @('ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC9', 'ESC13', 'ESC15/EKUwu') } {
+                { $_ -in @('ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC9', 'ESC13', 'ESC15/EKUwu', 'ESC17') } {
                     $Issue |
                     Format-Table Technique, @{l = 'Template Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Enabled, Issue -Wrap |
                     Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive

@@ -6,7 +6,7 @@ function Invoke-Scans {
     .PARAMETER Scans
         Specifies the type of scans to perform. Multiple scan options can be provided as an array. The default value is 'All'.
         The available scan options are: 'Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC8', 'ESC9', 'ESC11',
-            'ESC13', 'ESC15, 'EKUwu', 'ESC16', 'All', 'PromptMe'.
+            'ESC13', 'ESC15, 'EKUwu', 'ESC16', 'ESC17', 'All', 'PromptMe'.
 
     .NOTES
         - The script requires the following functions to be defined: Find-AuditingIssue, Find-ESC1, Find-ESC2, Find-ESC3C1,
@@ -37,6 +37,8 @@ function Invoke-Scans {
         [Parameter(Mandatory)]
         [string]$ClientAuthEkus,
         [Parameter(Mandatory)]
+        [string]$ServerAuthEkus,
+        [Parameter(Mandatory)]
         [string]$DangerousRights,
         [Parameter(Mandatory)]
         [string]$EnrollmentAgentEKU,
@@ -48,7 +50,7 @@ function Invoke-Scans {
         [string]$SafeUsers,
         [Parameter(Mandatory)]
         [string]$SafeOwners,
-        [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC9', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'ESC16', 'All', 'PromptMe')]
+        [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC9', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'ESC16', 'ESC17', 'All', 'PromptMe')]
         [array]$Scans = 'All',
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
@@ -133,6 +135,10 @@ function Invoke-Scans {
             Write-Host 'Identifying Issuing CAs with szOID_NTDS_CA_SECURITY_EXT disabled (ESC16)...'
             [array]$ESC16 = Find-ESC16 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
         }
+        ESC17 {
+            Write-Host 'Identifying AD CS templates with dangerous ESC17 configurations...'
+            [array]$ESC17 = Find-ESC17 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ServerAuthEKUs $ServerAuthEKUs -Mode $Mode -UnsafeUsers $UnsafeUsers
+        }
         All {
             Write-Host 'Identifying auditing issues...'
             [array]$AuditingIssues = Find-AuditingIssue -ADCSObjects $ADCSObjects
@@ -163,10 +169,12 @@ function Invoke-Scans {
             [array]$ESC15 = Find-ESC15 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
             Write-Host 'Identifying Certificate Authorities with szOID_NTDS_CA_SECURITY_EXT disabled (ESC16)...'
             [array]$ESC16 = Find-ESC16 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
+            Write-Host 'Identifying AD CS templates with dangerous ESC17 configurations...'
+            [array]$ESC17 = Find-ESC17 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ServerAuthEKUs $ServerAuthEkus -Mode $Mode -UnsafeUsers $UnsafeUsers
         }
     }
 
-    [array]$AllIssues = $AuditingIssues + $ESC1 + $ESC2 + $ESC3 + $ESC4 + $ESC5 + $ESC6 + $ESC7 + $ESC8 + $ESC9 + $ESC11 + $ESC13 + $ESC15 + $ESC16
+    [array]$AllIssues = $AuditingIssues + $ESC1 + $ESC2 + $ESC3 + $ESC4 + $ESC5 + $ESC6 + $ESC7 + $ESC8 + $ESC9 + $ESC11 + $ESC13 + $ESC15 + $ESC16 + $ESC17
 
     # If these are all empty = no issues found, exit
     if ($AllIssues.Count -lt 1) {
@@ -191,5 +199,6 @@ function Invoke-Scans {
         ESC13          = $ESC13
         ESC15          = $ESC15
         ESC16          = $ESC16
+        ESC17          = $ESC17
     }
 }
