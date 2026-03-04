@@ -1,4 +1,4 @@
-﻿[CmdletBinding(HelpUri = 'https://jakehildreth.github.io/Locksmith/Invoke-Locksmith')]
+[CmdletBinding(HelpUri = 'https://jakehildreth.github.io/Locksmith/Invoke-Locksmith')]
 param (
     # The mode to run Locksmith in. Defaults to 0.
     [Parameter(Mandatory = $false)]
@@ -7,12 +7,12 @@ param (
 
     # The scans to run. Defaults to 'All'.
     [Parameter()]
-    [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC9', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'ESC16', 'ESC17', 'All', 'PromptMe')]
+    [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC9', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'ESC16', 'All', 'PromptMe')]
     [array]$Scans = 'All',
 
+    # Domain Controller IP or FQDN. Required when running from non-domain-joined systems.
     [Parameter()]
-    [ValidateScript({ Test-Path -Path $_ -PathType Container })]
-    [string]$OutputPath = $PWD
+    [string]$Server
 )
 function Convert-IdentityReferenceToSid {
     <#
@@ -47,7 +47,13 @@ function Convert-IdentityReferenceToSid {
         $SID = $Principal
     }
     else {
-        $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+        try {
+            $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+        }
+        catch {
+            Write-Verbose "Could not translate identity: $Principal. Error: $_"
+            return $null
+        }
     }
     return $SID
 }
@@ -202,7 +208,11 @@ Invoke-Command -ComputerName '$($_.dNSHostName)' -ScriptBlock {
             $Issue.Revert = 'N/A'
         }
         if ($SkipRisk -eq $false) {
-            Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            }
         }
         $Issue
     }
@@ -250,7 +260,8 @@ function Find-ESC1 {
         [int]$Mode,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     $ADCSObjects | Where-Object {
         ($_.objectClass -eq 'pKICertificateTemplate') -and
@@ -265,7 +276,13 @@ function Find-ESC1 {
                 $SID = $Principal
             }
             else {
-                $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                try {
+                    $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                }
+                catch {
+                    Write-Verbose "Could not translate identity: $($entry.IdentityReference). Error: $_"
+                    continue
+                }
             }
             if (
                 ($SID -notmatch $SafeUsers) -and
@@ -309,7 +326,11 @@ Get-ADObject `$Object | Set-ADObject -Replace @{'msPKI-Enrollment-Flag' = 0}
                 }
 
                 if ($SkipRisk -eq $false) {
-                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    if ($Server) {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                    } else {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    }
                 }
 
                 if ( $Mode -in @(1, 3, 4) ) {
@@ -350,12 +371,13 @@ function Find-ESC11 {
         [Microsoft.ActiveDirectory.Management.ADEntity[]]$ADCSObjects,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     process {
         $ADCSObjects | Where-Object {
             ($_.objectClass -eq 'pKIEnrollmentService') -and
-            ($_.InterfaceFlag -ne 'Yes')
+            ($_.InterfaceFlag -notin @('Yes', 'CA Unavailable', 'Failure'))
         } | ForEach-Object {
             [string]$CAFullName = "$($_.dNSHostName)\$($_.Name)"
             $Issue = [pscustomobject]@{
@@ -401,7 +423,11 @@ Invoke-Command -ComputerName '$($_.dNSHostName)' -ScriptBlock {
 "@
             }
             if ($SkipRisk -eq $false) {
-                Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                if ($Server) {
+                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                } else {
+                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                }
             }
             $Issue
         }
@@ -447,7 +473,8 @@ function Find-ESC13 {
         [string]$ClientAuthEKUs,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
 
     $ADCSObjects | Where-Object {
@@ -465,7 +492,13 @@ function Find-ESC13 {
                             $SID = $Principal
                         }
                         else {
-                            $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                            try {
+                                $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                            }
+                            catch {
+                                Write-Verbose "Could not translate identity: $($entry.IdentityReference). Error: $_"
+                                continue
+                            }
                         }
                         if (
                             ($SID -notmatch $SafeUsers) -and
@@ -507,7 +540,11 @@ Get-ADObject `$Object | Set-ADObject -Replace @{'msPKI-Enrollment-Flag' = 0}
                                 Technique             = 'ESC13'
                             }
                             if ($SkipRisk -eq $false) {
-                                Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                                if ($Server) {
+                                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                                } else {
+                                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                                }
                             }
                             $Issue
                         }
@@ -550,7 +587,8 @@ function Find-ESC15 {
         [string]$SafeUsers,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     $ADCSObjects | Where-Object {
         ($_.objectClass -eq 'pKICertificateTemplate') -and
@@ -563,7 +601,13 @@ function Find-ESC15 {
                 $SID = $Principal
             }
             else {
-                $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                try {
+                    $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                }
+                catch {
+                    Write-Verbose "Could not translate identity: $($entry.IdentityReference). Error: $_"
+                    continue
+                }
             }
             if (
                 ($SID -notmatch $SafeUsers) -and
@@ -615,7 +659,11 @@ Invoke-WebRequest -Uri https://gist.githubusercontent.com/jakehildreth/13c7d615a
                     Technique             = 'ESC15/EKUwu'
                 }
                 if ($SkipRisk -eq $false) {
-                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    if ($Server) {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                    } else {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    }
                 }
                 $Issue
             }
@@ -646,7 +694,8 @@ function Find-ESC16 {
         [Microsoft.ActiveDirectory.Management.ADEntity[]]$ADCSObjects,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     process {
         $ADCSObjects | Where-Object {
@@ -665,7 +714,7 @@ function Find-ESC16 {
             if ($_.DisableExtensionList -eq 'Yes') {
                 $Issue.Issue = @"
 The Certification Authority (CA) $($_.CAFullName) has the szOID_NTDS_CA_SECURITY_EXT security extension disabled. When
-this extension is disabled, every certificate issued by this CA will be unable to reliably map a certificate to a
+this extension is disabled, every certificate issued from this template will be unable to to reliably map a certificate to a
 user or computer account's SID for authentication.
 
 More info:
@@ -692,123 +741,13 @@ Invoke-Command -ComputerName '$($_.dNSHostName)' -ScriptBlock {
 "@
             }
             if ($SkipRisk -eq $false) {
-                Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
-            }
-            $Issue
-        }
-    }
-}
-
-function Find-ESC17 {
-    <#
-    .SYNOPSIS
-        This script finds AD CS (Active Directory Certificate Services) objects that have the ESC1 vulnerability.
-
-    .DESCRIPTION
-        The script takes an array of ADCS objects as input and filters them based on the specified conditions.
-        For each matching object, it creates a custom object with properties representing various information about
-        the object, such as Forest, Name, DistinguishedName, IdentityReference, ActiveDirectoryRights, Issue, Fix, Revert, and Technique.
-
-    .PARAMETER ADCSObjects
-        Specifies the array of ADCS objects to be processed. This parameter is mandatory.
-
-    .PARAMETER SafeUsers
-        Specifies the list of SIDs of safe users who are allowed to have specific rights on the objects. This parameter is mandatory.
-
-    .PARAMETER ServerAuthEKUs
-        A list of EKUs that can be used for server authentication.
-
-    .OUTPUTS
-        The script outputs an array of custom objects representing the matching ADCS objects and their associated information.
-
-    .EXAMPLE
-        $Targets = Get-Target
-        $ADCSObjects = Get-ADCSObject -Targets $Targets
-        $SafeUsers = '-512$|-519$|-544$|-18$|-517$|-500$|-516$|-521$|-498$|-9$|-526$|-527$|S-1-5-10'
-        $ServerAuthEKUs = '1\.3\.6\.1\.5\.5\.7\.3\.1' 
-        $Results = Find-ESC1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ClientAuthEKUs $ServerAuthEKUs
-        $Results
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [Microsoft.ActiveDirectory.Management.ADEntity[]]$ADCSObjects,
-        [Parameter(Mandatory)]
-        [string]$SafeUsers,
-        [Parameter(Mandatory)]
-        $ServerAuthEKUs,
-        [Parameter(Mandatory)]
-        [int]$Mode,
-        [Parameter(Mandatory)]
-        [string]$UnsafeUsers,
-        [switch]$SkipRisk
-    )
-    $ADCSObjects | Where-Object {
-        ($_.objectClass -eq 'pKICertificateTemplate') -and
-        ($_.pkiExtendedKeyUsage -match $ServerAuthEKUs) -and
-        ($_.'msPKI-Certificate-Name-Flag' -band 1) -and
-        !($_.'msPKI-Enrollment-Flag' -band 2) -and
-        ( ($_.'msPKI-RA-Signature' -eq 0) -or ($null -eq $_.'msPKI-RA-Signature') )
-    } | ForEach-Object {
-        foreach ($entry in $_.nTSecurityDescriptor.Access) {
-            $Principal = New-Object System.Security.Principal.NTAccount($entry.IdentityReference)
-            if ($Principal -match '^(S-1|O:)') {
-                $SID = $Principal
-            }
-            else {
-                $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
-            }
-            if (
-                ($SID -notmatch $SafeUsers) -and
-                ( ( ($entry.ActiveDirectoryRights -match 'ExtendedRight') -and
-                    ( $entry.ObjectType -match '0e10c968-78fb-11d2-90d4-00c04f79dc55|00000000-0000-0000-0000-000000000000' ) ) -or
-                ($entry.ActiveDirectoryRights -match 'GenericAll') )
-            ) {
-                $Issue = [pscustomobject]@{
-                    Forest                = $_.CanonicalName.split('/')[0]
-                    Name                  = $_.Name
-                    DistinguishedName     = $_.DistinguishedName
-                    IdentityReference     = $entry.IdentityReference
-                    IdentityReferenceSID  = $SID
-                    ActiveDirectoryRights = $entry.ActiveDirectoryRights
-                    Enabled               = $_.Enabled
-                    EnabledOn             = $_.EnabledOn
-                    Issue                 = @"
-$($entry.IdentityReference) can provide a Subject Alternative Name (SAN) while
-enrolling in this Server Authentication template, and enrollment does not require
-Manager Approval.
-
-The resultant certificate can be used by an attacker to impersonate servers
-and perform Machine-in-the-Middle Attacks
-
-More info:
-  - https://trustedsec.com/blog/wsus-is-sus-ntlm-relay-attacks-in-plain-sight
-  - https://blog.digitrace.de/2026/01/using-adcs-to-attack-https-enabled-wsus-clients/
-
-"@
-                    Fix                   = @"
-# Enable Manager Approval
-`$Object = '$($_.DistinguishedName)'
-Get-ADObject `$Object | Set-ADObject -Replace @{'msPKI-Enrollment-Flag' = 2}
-"@
-                    Revert                = @"
-# Disable Manager Approval
-`$Object = '$($_.DistinguishedName)'
-Get-ADObject `$Object | Set-ADObject -Replace @{'msPKI-Enrollment-Flag' = 0}
-"@
-                    Technique             = 'ESC17'
-                }
-
-                if ($SkipRisk -eq $false) {
+                if ($Server) {
+                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                } else {
                     Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
                 }
-
-                # if ( $Mode -in @(1, 3, 4) ) {
-                #     Update-ESC1Remediation -Issue $Issue
-                # }
-
-                $Issue
             }
+            $Issue
         }
     }
 }
@@ -846,7 +785,8 @@ function Find-ESC2 {
         [string]$SafeUsers,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     $ADCSObjects | Where-Object {
         ($_.ObjectClass -eq 'pKICertificateTemplate') -and
@@ -860,7 +800,13 @@ function Find-ESC2 {
                 $SID = $Principal
             }
             else {
-                $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                try {
+                    $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                }
+                catch {
+                    Write-Verbose "Could not translate identity: $($entry.IdentityReference). Error: $_"
+                    continue
+                }
             }
             if (
                 ($SID -notmatch $SafeUsers) -and
@@ -914,7 +860,11 @@ Get-ADObject `$Object | Set-ADObject -Replace @{'msPKI-Enrollment-Flag' = 0}
                     Technique             = 'ESC2'
                 }
                 if ($SkipRisk -eq $false) {
-                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    if ($Server) {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                    } else {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    }
                 }
                 $Issue
             }
@@ -955,7 +905,8 @@ function Find-ESC3C1 {
         [string]$SafeUsers,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     $ADCSObjects | Where-Object {
         ($_.objectClass -eq 'pKICertificateTemplate') -and
@@ -969,7 +920,13 @@ function Find-ESC3C1 {
                 $SID = $Principal
             }
             else {
-                $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                try {
+                    $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                }
+                catch {
+                    Write-Verbose "Could not translate identity: $($entry.IdentityReference). Error: $_"
+                    continue
+                }
             }
             if (
                 ($SID -notmatch $SafeUsers) -and
@@ -1011,7 +968,11 @@ Get-ADObject `$Object | Set-ADObject -Replace @{'msPKI-Enrollment-Flag' = 0}
                     Condition             = 1
                 }
                 if ($SkipRisk -eq $false) {
-                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    if ($Server) {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                    } else {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    }
                 }
                 $Issue
             }
@@ -1052,7 +1013,8 @@ function Find-ESC3C2 {
         [string]$SafeUsers,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     $ADCSObjects | Where-Object {
         ($_.objectClass -eq 'pKICertificateTemplate') -and
@@ -1067,7 +1029,13 @@ function Find-ESC3C2 {
                 $SID = $Principal
             }
             else {
-                $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                try {
+                    $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                }
+                catch {
+                    Write-Verbose "Could not translate identity: $($entry.IdentityReference). Error: $_"
+                    continue
+                }
             }
             if (
                 ($SID -notmatch $SafeUsers) -and
@@ -1109,7 +1077,11 @@ Get-ADObject `$Object | Set-ADObject -Replace @{'msPKI-Enrollment-Flag' = 0}
                     Condition             = 2
                 }
                 if ($SkipRisk -eq $false) {
-                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    if ($Server) {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                    } else {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    }
                 }
                 $Issue
             }
@@ -1196,17 +1168,28 @@ function Find-ESC4 {
         [int]$Mode,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     $ADCSObjects | Where-Object objectClass -EQ 'pKICertificateTemplate' | ForEach-Object {
-        if ($_.Name -ne '' -and $null -ne $_.Name) {
+        if ($_.Name -ne '' -and $null -ne $_.Name -and $null -ne $_.nTSecurityDescriptor.Owner -and $_.nTSecurityDescriptor.Owner -ne '') {
             $Principal = [System.Security.Principal.NTAccount]::New($_.nTSecurityDescriptor.Owner)
             if ($Principal -match '^(S-1|O:)') {
                 $SID = $Principal
             }
             else {
-                $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                try {
+                    $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                }
+                catch {
+                    Write-Verbose "Could not translate owner identity for $($_.DistinguishedName): $Principal. Error: $_"
+                    return
+                }
             }
+        }
+        else {
+            # If owner is null or empty, skip this check
+            return
         }
 
         if ($SID -notmatch $SafeOwners) {
@@ -1242,7 +1225,11 @@ Set-ACL -Path 'AD:$($_.DistinguishedName)' -AclObject `$ACL
                 Technique             = 'ESC4'
             }
             if ($SkipRisk -eq $false) {
-                Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                if ($Server) {
+                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                } else {
+                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                }
             }
             $Issue
         }
@@ -1254,7 +1241,13 @@ Set-ACL -Path 'AD:$($_.DistinguishedName)' -AclObject `$ACL
                     $SID = $Principal
                 }
                 else {
-                    $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                    try {
+                        $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                    }
+                    catch {
+                        Write-Verbose "Could not translate identity: $($entry.IdentityReference). Error: $_"
+                        continue
+                    }
                 }
             }
 
@@ -1295,7 +1288,11 @@ Set-Acl -Path 'AD:$($_.DistinguishedName)' -AclObject `$ACL
                 }
 
                 if ($SkipRisk -eq $false) {
-                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    if ($Server) {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                    } else {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    }
                 }
 
                 if ( $Mode -in @(1, 3, 4) ) {
@@ -1384,26 +1381,42 @@ function Find-ESC5 {
         [string]$SafeObjectTypes,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     $ADCSObjects | ForEach-Object {
+        $SID = $null
         if ($_.Name -ne '' -and $null -ne $_.Name) {
-            $Principal = New-Object System.Security.Principal.NTAccount($_.nTSecurityDescriptor.Owner)
-            if ($Principal -match '^(S-1|O:)') {
-                $SID = $Principal
+            # Check if owner exists and is not null/empty before creating NTAccount
+            if ($null -ne $_.nTSecurityDescriptor.Owner -and $_.nTSecurityDescriptor.Owner -ne '') {
+                $Principal = New-Object System.Security.Principal.NTAccount($_.nTSecurityDescriptor.Owner)
+                if ($Principal -match '^(S-1|O:)') {
+                    $SID = $Principal
+                }
+                else {
+                    try {
+                        $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                    }
+                    catch {
+                        Write-Verbose "Could not translate owner identity for $($_.DistinguishedName): $Principal. Error: $_"
+                        $SID = $null
+                    }
+                }
             }
             else {
-                $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                Write-Verbose "Object has null or empty owner: $($_.DistinguishedName)"
             }
         }
 
         $IssueDetail = ''
         $DangerousOwner = $false
-        if ( ($_.objectClass -eq 'computer') -and ($SID -match '-512$') ) {
-            $DangerousOwner = $false
-        }
-        elseif ( ($_.objectClass -ne 'pKICertificateTemplate') -and ($SID -notmatch $SafeOwners) ) {
-            $DangerousOwner = $true
+        if ($null -ne $SID) {
+            if ( ($_.objectClass -eq 'computer') -and ($SID -match '-512$') ) {
+                $DangerousOwner = $false
+            }
+            elseif ( ($_.objectClass -ne 'pKICertificateTemplate') -and ($SID -notmatch $SafeOwners) ) {
+                $DangerousOwner = $true
+            }
         }
 
         if ($DangerousOwner) {
@@ -1487,7 +1500,11 @@ Set-ACL -Path 'AD:$($_.DistinguishedName)' -AclObject `$ACL"
                 Technique             = 'ESC5'
             } # end switch ($_.objectClass)
             if ($SkipRisk -eq $false) {
-                Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                if ($Server) {
+                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                } else {
+                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                }
             }
             $Issue
         } # end if ( ($_.objectClass -ne 'pKICertificateTemplate') -and ($SID -notmatch $SafeOwners) )
@@ -1499,7 +1516,13 @@ Set-ACL -Path 'AD:$($_.DistinguishedName)' -AclObject `$ACL"
                 $SID = $Principal
             }
             else {
-                $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                try {
+                    $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                }
+                catch {
+                    Write-Verbose "Could not translate identity: $($entry.IdentityReference). Error: $_"
+                    continue
+                }
             }
 
             switch ($_.objectClass) {
@@ -1587,7 +1610,11 @@ Set-Acl -Path 'AD:$($_.DistinguishedName)' -AclObject `$ACL
                     Technique             = 'ESC5'
                 }
                 if ($SkipRisk -eq $false) {
-                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    if ($Server) {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                    } else {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    }
                 }
                 $Issue
             } # end if ( ($_.objectClass -ne 'pKICertificateTemplate')
@@ -1623,12 +1650,13 @@ function Find-ESC6 {
         [Microsoft.ActiveDirectory.Management.ADEntity[]]$ADCSObjects,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     process {
         $ADCSObjects | Where-Object {
             ($_.objectClass -eq 'pKIEnrollmentService') -and
-            ($_.SANFlag -ne 'No')
+            ($_.SANFlag -notin @('No', 'CA Unavailable', 'Failure'))
         } | ForEach-Object {
             [string]$CAFullName = "$($_.dNSHostName)\$($_.Name)"
             $Issue = [pscustomobject]@{
@@ -1678,7 +1706,11 @@ Invoke-Command -ComputerName '$($_.dNSHostName)' -ScriptBlock {
 "@
             }
             if ($SkipRisk -eq $false) {
-                Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                if ($Server) {
+                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                } else {
+                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                }
             }
             $Issue
         }
@@ -1718,7 +1750,8 @@ function Find-ESC7 {
         [string]$UnsafeUsers,
         [Parameter(Mandatory)]
         [string]$SafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     process {
         Write-Output $ADCSObjects -PipelineVariable object | Where-Object {
@@ -1726,7 +1759,16 @@ function Find-ESC7 {
             ( ($object.CAAdministrator) -or ($object.CertificateManager) )
         } | ForEach-Object {
             Write-Output $object.CAAdministrator -PipelineVariable admin | ForEach-Object {
+                # Skip placeholder values
+                if ($admin -in @('CA Unavailable', 'Failure')) {
+                    return
+                }
                 $SID = Convert-IdentityReferenceToSid -Object $admin
+                # Skip if SID conversion failed
+                if ($null -eq $SID) {
+                    Write-Verbose "Skipping admin '$admin' - could not convert to SID"
+                    return
+                }
                 if ($SID -notmatch $SafeUsers) {
                     $Issue = [pscustomobject]@{
                         Forest               = $object.CanonicalName.split('/')[0]
@@ -1750,7 +1792,11 @@ More info:
                     }
 
                     if ($SkipRisk -eq $false) {
-                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                        if ($Server) {
+                            Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                        } else {
+                            Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                        }
                     }
 
                     if ( $Mode -in @(1, 3, 4) ) {
@@ -1762,7 +1808,16 @@ More info:
             }
 
             Write-Output $object.CertificateManager -PipelineVariable admin | ForEach-Object {
+                # Skip placeholder values
+                if ($admin -in @('CA Unavailable', 'Failure')) {
+                    return
+                }
                 $SID = Convert-IdentityReferenceToSid -Object $admin
+                # Skip if SID conversion failed
+                if ($null -eq $SID) {
+                    Write-Verbose "Skipping certificate manager '$admin' - could not convert to SID"
+                    return
+                }
                 if ($SID -notmatch $SafeUsers) {
                     $Issue = [pscustomobject]@{
                         Forest               = $object.CanonicalName.split('/')[0]
@@ -1786,7 +1841,11 @@ More info:
                     }
 
                     if ($SkipRisk -eq $false) {
-                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                        if ($Server) {
+                            Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                        } else {
+                            Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                        }
                     }
 
                     if ( $Mode -in @(1, 3, 4) ) {
@@ -1835,33 +1894,44 @@ function Find-ESC8 {
         [Microsoft.ActiveDirectory.Management.ADEntity[]]$ADCSObjects,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
 
     process {
         $ADCSObjects | Where-Object {
             $_.CAEnrollmentEndpoint
         } | ForEach-Object {
-            foreach ($endpoint in $_.CAEnrollmentEndpoint) {
+            Write-Verbose "Find-ESC8: Processing CA $($_.Name) with $($_.CAEnrollmentEndpoint.Count) endpoint(s)"
+            
+            # Group endpoints by protocol (HTTP vs HTTPS) for this CA
+            $httpEndpoints = @($_.CAEnrollmentEndpoint | Where-Object { $_.URL -match '^http:' })
+            $httpsEndpoints = @($_.CAEnrollmentEndpoint | Where-Object { $_.URL -match '^https:' })
+            
+            # Create one finding per protocol type (if endpoints exist)
+            if ($httpEndpoints.Count -gt 0) {
+                $endpointList = ($httpEndpoints | ForEach-Object { "  - $($_.URL)" }) -join "`n"
                 $Issue = [pscustomobject]@{
                     Forest               = $_.CanonicalName.split('/')[0]
                     Name                 = $_.Name
                     DistinguishedName    = $_.DistinguishedName
-                    CAEnrollmentEndpoint = $endpoint.URL
-                    AuthType             = $endpoint.Auth
-                    Issue                = @'
-An HTTP enrollment endpoint is available. It is possible to relay NTLM
-authentication to this HTTP endpoint.
+                    CAEnrollmentEndpoint = $endpointList
+                    AuthType             = ($httpEndpoints | Select-Object -First 1).Auth
+                    Issue                = @"
+HTTP enrollment endpoint(s) are available on this CA:
+$endpointList
+
+It is possible to relay NTLM authentication to these HTTP endpoint(s).
 
 If the LAN Manager authentication level of any domain in this forest is 2 or
 less, an attacker can coerce authentication from a Domain Controller (DC) and
-relay it to this HTTP enrollment endpoint to receive a certificate which can be
+relay it to these HTTP enrollment endpoint(s) to receive a certificate which can be
 used to authenticate as that DC.
 
 More info:
   - https://posts.specterops.io/certified-pre-owned-d95910965cd2
 
-'@
+"@
                     Fix                  = @'
 Disable HTTP access and enforce HTTPS.
 Enable EPA.
@@ -1870,26 +1940,51 @@ Disable NTLM authentication (if possible.)
                     Revert               = '[TODO]'
                     Technique            = 'ESC8'
                 }
-                if ($endpoint.URL -match '^https:') {
-                    $Issue.Issue = @'
-An HTTPS enrollment endpoint is available. It may be possible to relay NTLM
-authentication to this HTTPS endpoint. Enabling IIS Extended Protection for
-Authentication or disabling NTLM authentication completely, NTLM relay is not
-possible.
+                if ($SkipRisk -eq $false) {
+                    if ($Server) {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                    } else {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    }
+                }
+                $Issue
+            }
+            
+            if ($httpsEndpoints.Count -gt 0) {
+                $endpointList = ($httpsEndpoints | ForEach-Object { "  - $($_.URL)" }) -join "`n"
+                $Issue = [pscustomobject]@{
+                    Forest               = $_.CanonicalName.split('/')[0]
+                    Name                 = $_.Name
+                    DistinguishedName    = $_.DistinguishedName
+                    CAEnrollmentEndpoint = $endpointList
+                    AuthType             = ($httpsEndpoints | Select-Object -First 1).Auth
+                    Issue                = @"
+HTTPS enrollment endpoint(s) are available on this CA:
+$endpointList
 
-If those protection are not in place, and the LAN Manager authentication level
+It may be possible to relay NTLM authentication to these HTTPS endpoint(s). Enabling IIS 
+Extended Protection for Authentication or disabling NTLM authentication completely prevents
+NTLM relay.
+
+If those protections are not in place, and the LAN Manager authentication level
 of any domain in this forest is 2 or less, an attacker can coerce authentication
-from a Domain Controller (DC) and relay it to this HTTPS enrollment endpoint to
+from a Domain Controller (DC) and relay it to these HTTPS enrollment endpoint(s) to
 receive a certificate which can be used to authenticate as that DC.
 
-'@
-                    $Issue.Fix = @'
+"@
+                    Fix                  = @'
 Ensure EPA is enabled.
 Disable NTLM authentication (if possible.)
 '@
+                    Revert               = '[TODO]'
+                    Technique            = 'ESC8'
                 }
                 if ($SkipRisk -eq $false) {
-                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    if ($Server) {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                    } else {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    }
                 }
                 $Issue
             }
@@ -1941,7 +2036,8 @@ function Find-ESC9 {
         [int]$Mode = 0,
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
-        [switch]$SkipRisk
+        [switch]$SkipRisk,
+        [string]$Server
     )
     $ADCSObjects | Where-Object {
         ($_.objectClass -eq 'pKICertificateTemplate') -and
@@ -1954,7 +2050,13 @@ function Find-ESC9 {
                 $SID = $Principal
             }
             else {
-                $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                try {
+                    $SID = ($Principal.Translate([System.Security.Principal.SecurityIdentifier])).Value
+                }
+                catch {
+                    Write-Verbose "Could not translate identity: $($entry.IdentityReference). Error: $_"
+                    continue
+                }
             }
             if (
                 ($SID -notmatch $SafeUsers) -and
@@ -2007,7 +2109,11 @@ Get-ADObject `$Object | Set-ADObject -Replace @{'msPKI-Enrollment-Flag' = 0}
                     Update-ESC9Remediation -Issue $Issue
                 }
                 if ($SkipRisk -eq $false) {
-                    Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    if ($Server) {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                    } else {
+                        Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                    }
                 }
                 $Issue
             }
@@ -2049,7 +2155,7 @@ function Format-Result {
 
     $IssueTable = @{
         DETECT        = 'Auditing Not Fully Enabled'
-        ESC1          = 'ESC1 - Vulnerable Certificate Template - Client Authentication'
+        ESC1          = 'ESC1 - Vulnerable Certificate Template - Authentication'
         ESC2          = 'ESC2 - Vulnerable Certificate Template - Subordinate CA/Any Purpose'
         ESC3          = 'ESC3 - Vulnerable Certificate Template - Enrollment Agent'
         ESC4          = 'ESC4 - Vulnerable Access Control - Certificate Template'
@@ -2062,7 +2168,6 @@ function Format-Result {
         ESC13         = 'ESC13 - Vulnerable Certificate Template - Group-Linked'
         'ESC15/EKUwu' = 'ESC15 - Vulnerable Certificate Template - Schema V1'
         ESC16         = 'ESC16 - szOID_NTDS_CA_SECURITY_EXT Extension Disabled on CA'
-        ESC17         = 'ESC17 - Vulnerable Certificate Template - Server Authentication'
     }
 
     $RiskTable = @{
@@ -2091,7 +2196,7 @@ function Format-Result {
                         Format-Table Technique, @{l = 'CA Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Issue -Wrap |
                             Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
                 }
-                { $_ -in @('ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC9', 'ESC13', 'ESC15/EKUwu', 'ESC17') } {
+                { $_ -in @('ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC9', 'ESC13', 'ESC15/EKUwu') } {
                     $Issue |
                         Format-Table Technique, @{l = 'Template Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Enabled, Issue -Wrap |
                             Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
@@ -2150,16 +2255,25 @@ function Get-ADCSObject {
     param(
         [Parameter(Mandatory)]
         [array]$Targets,
-        [System.Management.Automation.PSCredential]$Credential
+        [System.Management.Automation.PSCredential]$Credential,
+        [string]$Server
     )
     foreach ( $forest in $Targets ) {
-        if ($Credential) {
+        if ($Credential -and $Server) {
+            $ADRoot = (Get-ADRootDSE -Credential $Credential -Server $Server).defaultNamingContext
+            Get-ADObject -Filter * -SearchBase "CN=Public Key Services,CN=Services,CN=Configuration,$ADRoot" -SearchScope 2 -Properties * -Credential $Credential -Server $Server
+        }
+        elseif ($Credential) {
             $ADRoot = (Get-ADRootDSE -Credential $Credential -Server $forest).defaultNamingContext
-            Get-ADObject -Filter * -SearchBase "CN=Public Key Services,CN=Services,CN=Configuration,$ADRoot" -SearchScope 2 -Properties * -Credential $Credential
+            Get-ADObject -Filter * -SearchBase "CN=Public Key Services,CN=Services,CN=Configuration,$ADRoot" -SearchScope 2 -Properties * -Credential $Credential -Server $forest
+        }
+        elseif ($Server) {
+            $ADRoot = (Get-ADRootDSE -Server $Server).defaultNamingContext
+            Get-ADObject -Filter * -SearchBase "CN=Public Key Services,CN=Services,CN=Configuration,$ADRoot" -SearchScope 2 -Properties * -Server $Server
         }
         else {
             $ADRoot = (Get-ADRootDSE -Server $forest).defaultNamingContext
-            Get-ADObject -Filter * -SearchBase "CN=Public Key Services,CN=Services,CN=Configuration,$ADRoot" -SearchScope 2 -Properties *
+            Get-ADObject -Filter * -SearchBase "CN=Public Key Services,CN=Services,CN=Configuration,$ADRoot" -SearchScope 2 -Properties * -Server $forest
         }
     }
 }
@@ -2302,7 +2416,8 @@ function Get-Target {
     param (
         [string]$Forest,
         [string]$InputPath,
-        [System.Management.Automation.PSCredential]$Credential
+        [System.Management.Automation.PSCredential]$Credential,
+        [string]$Server
     )
 
     if ($Forest) {
@@ -2312,8 +2427,14 @@ function Get-Target {
         $Targets = Get-Content $InputPath
     }
     else {
-        if ($Credential) {
+        if ($Credential -and $Server) {
+            $Targets = (Get-ADForest -Credential $Credential -Server $Server).Name
+        }
+        elseif ($Credential) {
             $Targets = (Get-ADForest -Credential $Credential).Name
+        }
+        elseif ($Server) {
+            $Targets = (Get-ADForest -Server $Server).Name
         }
         else {
             $Targets = (Get-ADForest).Name
@@ -2765,7 +2886,7 @@ function Invoke-Scans {
     .PARAMETER Scans
         Specifies the type of scans to perform. Multiple scan options can be provided as an array. The default value is 'All'.
         The available scan options are: 'Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC8', 'ESC9', 'ESC11',
-            'ESC13', 'ESC15, 'EKUwu', 'ESC16', 'ESC17', 'All', 'PromptMe'.
+            'ESC13', 'ESC15, 'EKUwu', 'ESC16', 'All', 'PromptMe'.
 
     .NOTES
         - The script requires the following functions to be defined: Find-AuditingIssue, Find-ESC1, Find-ESC2, Find-ESC3C1,
@@ -2796,8 +2917,6 @@ function Invoke-Scans {
         [Parameter(Mandatory)]
         [string]$ClientAuthEkus,
         [Parameter(Mandatory)]
-        [string]$ServerAuthEkus,
-        [Parameter(Mandatory)]
         [string]$DangerousRights,
         [Parameter(Mandatory)]
         [string]$EnrollmentAgentEKU,
@@ -2809,12 +2928,13 @@ function Invoke-Scans {
         [string]$SafeUsers,
         [Parameter(Mandatory)]
         [string]$SafeOwners,
-        [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC9', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'ESC16', 'ESC17', 'All', 'PromptMe')]
+        [ValidateSet('Auditing', 'ESC1', 'ESC2', 'ESC3', 'ESC4', 'ESC5', 'ESC6', 'ESC7', 'ESC8', 'ESC9', 'ESC11', 'ESC13', 'ESC15', 'EKUwu', 'ESC16', 'All', 'PromptMe')]
         [array]$Scans = 'All',
         [Parameter(Mandatory)]
         [string]$UnsafeUsers,
         [Parameter(Mandatory)]
-        [System.Security.Principal.SecurityIdentifier]$PreferredOwner
+        [System.Security.Principal.SecurityIdentifier]$PreferredOwner,
+        [string]$Server
     )
 
     if ( $Scans -eq 'PromptMe' ) {
@@ -2841,64 +2961,113 @@ function Invoke-Scans {
         }
         ESC1 {
             Write-Host 'Identifying AD CS templates with dangerous ESC1 configurations...'
-            [array]$ESC1 = Find-ESC1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ClientAuthEKUs $ClientAuthEkus -Mode $Mode -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                [array]$ESC1 = Find-ESC1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ClientAuthEKUs $ClientAuthEkus -Mode $Mode -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                [array]$ESC1 = Find-ESC1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ClientAuthEKUs $ClientAuthEkus -Mode $Mode -UnsafeUsers $UnsafeUsers
+            }
         }
         ESC2 {
             Write-Host 'Identifying AD CS templates with dangerous ESC2 configurations...'
-            [array]$ESC2 = Find-ESC2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                [array]$ESC2 = Find-ESC2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                [array]$ESC2 = Find-ESC2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            }
         }
         ESC3 {
             Write-Host 'Identifying AD CS templates with dangerous ESC3 configurations...'
-            [array]$ESC3 = Find-ESC3C1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
-            [array]$ESC3 += Find-ESC3C2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                [array]$ESC3 = Find-ESC3C1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+                [array]$ESC3 += Find-ESC3C2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                [array]$ESC3 = Find-ESC3C1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                [array]$ESC3 += Find-ESC3C2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            }
         }
         ESC4 {
             Write-Host 'Identifying AD CS templates with poor access control (ESC4)...'
-            [array]$ESC4 = Find-ESC4 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -DangerousRights $DangerousRights -SafeOwners $SafeOwners -SafeObjectTypes $SafeObjectTypes -Mode $Mode -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                [array]$ESC4 = Find-ESC4 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -DangerousRights $DangerousRights -SafeOwners $SafeOwners -SafeObjectTypes $SafeObjectTypes -Mode $Mode -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                [array]$ESC4 = Find-ESC4 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -DangerousRights $DangerousRights -SafeOwners $SafeOwners -SafeObjectTypes $SafeObjectTypes -Mode $Mode -UnsafeUsers $UnsafeUsers
+            }
         }
         ESC5 {
             Write-Host 'Identifying AD CS objects with poor access control (ESC5)...'
-            [array]$ESC5 = Find-ESC5 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -DangerousRights $DangerousRights -SafeOwners $SafeOwners -SafeObjectTypes $SafeObjectTypes -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                [array]$ESC5 = Find-ESC5 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -DangerousRights $DangerousRights -SafeOwners $SafeOwners -SafeObjectTypes $SafeObjectTypes -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                [array]$ESC5 = Find-ESC5 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -DangerousRights $DangerousRights -SafeOwners $SafeOwners -SafeObjectTypes $SafeObjectTypes -UnsafeUsers $UnsafeUsers
+            }
         }
         ESC6 {
             Write-Host 'Identifying Issuing CAs with EDITF_ATTRIBUTESUBJECTALTNAME2 enabled (ESC6)...'
-            [array]$ESC6 = Find-ESC6 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                [array]$ESC6 = Find-ESC6 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                [array]$ESC6 = Find-ESC6 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
+            }
         }
         ESC7 {
             Write-Host 'Identifying Issuing CAs with Non-Standard Admins (ESC7)...'
-            [array]$ESC7 = Find-ESC7 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers -SafeUsers $SafeUsers
+            if ($Server) {
+                [array]$ESC7 = Find-ESC7 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers -SafeUsers $SafeUsers -Server $Server
+            } else {
+                [array]$ESC7 = Find-ESC7 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers -SafeUsers $SafeUsers
+            }
         }
         ESC8 {
             Write-Host 'Identifying HTTP-based certificate enrollment interfaces (ESC8)...'
-            [array]$ESC8 = Find-ESC8 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                [array]$ESC8 = Find-ESC8 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                [array]$ESC8 = Find-ESC8 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
+            }
         }
         ESC9 {
             Write-Host 'Identifying AD CS templates with szOID_NTDS_CA_SECURITY_EXT disabled (ESC9)...'
-            [array]$ESC9 = Find-ESC9 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ClientAuthEKUs $ClientAuthEkus -Mode $Mode -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                [array]$ESC9 = Find-ESC9 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ClientAuthEKUs $ClientAuthEkus -Mode $Mode -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                [array]$ESC9 = Find-ESC9 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ClientAuthEKUs $ClientAuthEkus -Mode $Mode -UnsafeUsers $UnsafeUsers
+            }
         }
         ESC11 {
             Write-Host 'Identifying Issuing CAs with IF_ENFORCEENCRYPTICERTREQUEST disabled (ESC11)...'
-            [array]$ESC11 = Find-ESC11 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                [array]$ESC11 = Find-ESC11 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                [array]$ESC11 = Find-ESC11 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
+            }
         }
         ESC13 {
             Write-Host 'Identifying AD CS templates with dangerous ESC13 configurations...'
-            [array]$ESC13 = Find-ESC13 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ClientAuthEKUs $ClientAuthEKUs -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                [array]$ESC13 = Find-ESC13 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ClientAuthEKUs $ClientAuthEKUs -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                [array]$ESC13 = Find-ESC13 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ClientAuthEKUs $ClientAuthEKUs -UnsafeUsers $UnsafeUsers
+            }
         }
         ESC15 {
             Write-Host 'Identifying AD CS templates with dangerous ESC15/EKUwu configurations...'
-            [array]$ESC15 = Find-ESC15 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            if ($Server) {
+                [array]$ESC15 = Find-ESC15 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers -Server $Server
+            } else {
+                [array]$ESC15 = Find-ESC15 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            }
         }
         EKUwu {
             Write-Host 'Identifying AD CS templates with dangerous ESC15/EKUwu configurations...'
-            [array]$ESC15 = Find-ESC15 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers
+            if ($Server) {
+                [array]$ESC15 = Find-ESC15 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -Server $Server
+            } else {
+                [array]$ESC15 = Find-ESC15 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers
+            }
         }
         ESC16 {
             Write-Host 'Identifying Issuing CAs with szOID_NTDS_CA_SECURITY_EXT disabled (ESC16)...'
             [array]$ESC16 = Find-ESC16 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
-        }
-        ESC17 {
-            Write-Host 'Identifying AD CS templates with dangerous ESC17 configurations...'
-            [array]$ESC17 = Find-ESC17 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ServerAuthEKUs $ServerAuthEKUs -Mode $Mode -UnsafeUsers $UnsafeUsers
         }
         All {
             Write-Host 'Identifying auditing issues...'
@@ -2930,12 +3099,10 @@ function Invoke-Scans {
             [array]$ESC15 = Find-ESC15 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
             Write-Host 'Identifying Certificate Authorities with szOID_NTDS_CA_SECURITY_EXT disabled (ESC16)...'
             [array]$ESC16 = Find-ESC16 -ADCSObjects $ADCSObjects -UnsafeUsers $UnsafeUsers
-            Write-Host 'Identifying AD CS templates with dangerous ESC17 configurations...'
-            [array]$ESC17 = Find-ESC17 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -ServerAuthEKUs $ServerAuthEkus -Mode $Mode -UnsafeUsers $UnsafeUsers
         }
     }
 
-    [array]$AllIssues = $AuditingIssues + $ESC1 + $ESC2 + $ESC3 + $ESC4 + $ESC5 + $ESC6 + $ESC7 + $ESC8 + $ESC9 + $ESC11 + $ESC13 + $ESC15 + $ESC16 + $ESC17
+    [array]$AllIssues = $AuditingIssues + $ESC1 + $ESC2 + $ESC3 + $ESC4 + $ESC5 + $ESC6 + $ESC7 + $ESC8 + $ESC9 + $ESC11 + $ESC13 + $ESC15 + $ESC16
 
     # If these are all empty = no issues found, exit
     if ($AllIssues.Count -lt 1) {
@@ -2960,7 +3127,6 @@ function Invoke-Scans {
         ESC13          = $ESC13
         ESC15          = $ESC15
         ESC16          = $ESC16
-        ESC17          = $ESC17
     }
 }
 
@@ -3236,12 +3402,16 @@ function Set-AdditionalCAProperty {
             $CAEnrollmentEndpoint = @()
             foreach ($directory in @('certsrv/', "$($_.Name)_CES_Kerberos/service.svc", "$($_.Name)_CES_Kerberos/service.svc/CES", 'ADPolicyProvider_CEP_Kerberos/service.svc', 'certsrv/mscep/')) {
                 $URL = "://$($_.dNSHostName)/$directory"
+                
+                # Determine which credentials to use
+                $WebCredential = if ($Credential) { $Credential.GetNetworkCredential() } else { [System.Net.CredentialCache]::DefaultNetworkCredentials }
+                
                 try {
                     $Auth = 'NTLM'
                     $FullURL = "http$URL"
                     $Request = [System.Net.WebRequest]::Create($FullURL)
                     $Cache = [System.Net.CredentialCache]::New()
-                    $Cache.Add([System.Uri]::new($FullURL), $Auth, [System.Net.CredentialCache]::DefaultNetworkCredentials)
+                    $Cache.Add([System.Uri]::new($FullURL), $Auth, $WebCredential)
                     $Request.Credentials = $Cache
                     $Request.Timeout = 100
                     $Request.GetResponse() | Out-Null
@@ -3251,12 +3421,34 @@ function Set-AdditionalCAProperty {
                     }
                 }
                 catch {
+                    # Check if HTTP failed due to auth requirement (401/403) - means endpoint exists
+                    $endpointExists = $false
+                    
+                    if ($_.Exception -is [System.Net.WebException] -and $_.Exception.Response) {
+                        $statusCode = [int]$_.Exception.Response.StatusCode
+                        if ($statusCode -in @(401, 403)) {
+                            $endpointExists = $true
+                        }
+                    }
+                    # Also check for MethodInvocationException wrapping WebException
+                    elseif ($_.Exception.Message -match '(401|403|Unauthorized|Forbidden)' -and $_.Exception.Message -notmatch 'timed out') {
+                        $endpointExists = $true
+                    }
+                    
+                    if ($endpointExists) {
+                        $CAEnrollmentEndpoint += @{
+                            'URL'  = $FullURL
+                            'Auth' = "$Auth (auth required)"
+                        }
+                    }
+                    
+                    # Always try HTTPS - HTTP and HTTPS are independent endpoints
                     try {
                         $Auth = 'NTLM'
                         $FullURL = "https$URL"
                         $Request = [System.Net.WebRequest]::Create($FullURL)
                         $Cache = [System.Net.CredentialCache]::New()
-                        $Cache.Add([System.Uri]::new($FullURL), $Auth, [System.Net.CredentialCache]::DefaultNetworkCredentials)
+                        $Cache.Add([System.Uri]::new($FullURL), $Auth, $WebCredential)
                         $Request.Credentials = $Cache
                         $Request.Timeout = 100
                         $Request.GetResponse() | Out-Null
@@ -3266,12 +3458,34 @@ function Set-AdditionalCAProperty {
                         }
                     }
                     catch {
+                        # Check if HTTPS/NTLM failed due to auth requirement
+                        $endpointExists = $false
+                        
+                        if ($_.Exception -is [System.Net.WebException] -and $_.Exception.Response) {
+                            $statusCode = [int]$_.Exception.Response.StatusCode
+                            if ($statusCode -in @(401, 403)) {
+                                $endpointExists = $true
+                            }
+                        }
+                        # Also check for MethodInvocationException wrapping WebException
+                        elseif ($_.Exception.Message -match '(401|403|Unauthorized|Forbidden)' -and $_.Exception.Message -notmatch 'timed out') {
+                            $endpointExists = $true
+                        }
+                        
+                        if ($endpointExists) {
+                            $CAEnrollmentEndpoint += @{
+                                'URL'  = $FullURL
+                                'Auth' = "$Auth (auth required)"
+                            }
+                        }
+                        
+                        # Try Negotiate auth as final attempt
                         try {
                             $Auth = 'Negotiate'
                             $FullURL = "https$URL"
                             $Request = [System.Net.WebRequest]::Create($FullURL)
                             $Cache = [System.Net.CredentialCache]::New()
-                            $Cache.Add([System.Uri]::new($FullURL), $Auth, [System.Net.CredentialCache]::DefaultNetworkCredentials)
+                            $Cache.Add([System.Uri]::new($FullURL), $Auth, $WebCredential)
                             $Request.Credentials = $Cache
                             $Request.Timeout = 100
                             $Request.GetResponse() | Out-Null
@@ -3281,11 +3495,50 @@ function Set-AdditionalCAProperty {
                             }
                         }
                         catch {
-                            Write-Debug "There may have been an error or something nothing found. $_"
+                            # Check if HTTPS/Negotiate failed due to auth requirement
+                            $endpointExists = $false
+                            
+                            if ($_.Exception -is [System.Net.WebException] -and $_.Exception.Response) {
+                                $statusCode = [int]$_.Exception.Response.StatusCode
+                                if ($statusCode -in @(401, 403)) {
+                                    $endpointExists = $true
+                                }
+                            }
+                            # Also check for MethodInvocationException wrapping WebException
+                            elseif ($_.Exception.Message -match '(401|403|Unauthorized|Forbidden)' -and $_.Exception.Message -notmatch 'timed out') {
+                                $endpointExists = $true
+                            }
+                            
+                            if ($endpointExists) {
+                                $CAEnrollmentEndpoint += @{
+                                    'URL'  = $FullURL
+                                    'Auth' = "$Auth (auth required)"
+                                }
+                            }
+                            else {
+                                Write-Debug "No web enrollment endpoint found at $FullURL. $_"
+                            }
                         }
                     }
                 }
             }
+            
+            # Deduplicate endpoints - same URL might be detected by multiple auth methods
+            $UniqueEndpoints = @()
+            $SeenURLs = @{}
+            foreach ($endpoint in $CAEnrollmentEndpoint) {
+                if (-not $SeenURLs.ContainsKey($endpoint.URL)) {
+                    $UniqueEndpoints += $endpoint
+                    $SeenURLs[$endpoint.URL] = $true
+                }
+            }
+            $CAEnrollmentEndpoint = $UniqueEndpoints
+            
+            Write-Verbose "CA: $($_.Name) - Found $($CAEnrollmentEndpoint.Count) unique endpoint(s)"
+            foreach ($ep in $CAEnrollmentEndpoint) {
+                Write-Verbose "  - $($ep.URL) ($($ep.Auth))"
+            }
+            
             [string]$CAFullName = "$($_.dNSHostName)\$($_.Name)"
             $CAHostname = $_.dNSHostName.split('.')[0]
             if ($Credential) {
@@ -3296,12 +3549,33 @@ function Set-AdditionalCAProperty {
                 $CAHostDistinguishedName = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Server $ForestGC ).DistinguishedName
                 $CAHostFQDN = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Properties DnsHostname -Server $ForestGC).DnsHostname
             }
-            $ping = if ($CAHostFQDN) {
-                Test-Connection -ComputerName $CAHostFQDN -Count 1 -Quiet 
+            
+            # Test CA availability using certutil -ping instead of ICMP ping
+            # This tests RPC connectivity to the CA service, which is what we actually need
+            $ping = $false
+            if ($CAHostFQDN) {
+                try {
+                    if ($Credential) {
+                        $pingResult = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { 
+                            certutil -config $using:CAFullName -ping 2>&1
+                        } -ErrorAction SilentlyContinue
+                    }
+                    else {
+                        $pingResult = certutil -config $CAFullName -ping 2>&1
+                    }
+                    # Check if the ping was successful
+                    if ($pingResult -match 'interface is alive|completed successfully') {
+                        $ping = $true
+                    }
+                }
+                catch {
+                    Write-Verbose "Unable to ping CA $CAFullName via certutil: $_"
+                }
             }
             else {
                 Write-Warning "Unable to resolve $($_.Name) Fully Qualified Domain Name (FQDN)" 
             }
+            
             if ($ping) {
                 try {
                     if ($Credential) {
@@ -3531,7 +3805,8 @@ function Set-RiskRating {
         [Parameter(Mandatory)]
         [string]$SafeUsers,
         [Parameter(Mandatory)]
-        [string]$UnsafeUsers
+        [string]$UnsafeUsers,
+        [string]$Server
     )
 
     #requires -Version 5
@@ -3541,7 +3816,7 @@ function Set-RiskRating {
     $RiskScoring = @()
 
     # CA issues don't rely on a principal and have a base risk of Medium.
-    if ($Issue.Technique -in @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC17')) {
+    if ($Issue.Technique -in @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC16')) {
         $RiskValue += 3
         $RiskScoring += 'Base Score: 3'
 
@@ -3552,15 +3827,25 @@ function Set-RiskRating {
 
         if ($Issue.Technique -eq 'ESC7') {
             # If an Issue can be tied to a principal, the principal's objectClass impacts the Issue's risk
-            $SID = $Issue.IdentityReferenceSID.ToString()
-            $IdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $SID } | Select-Object objectClass
+            if ($null -ne $Issue.IdentityReferenceSID) {
+                $SID = $Issue.IdentityReferenceSID.ToString()
+                if ($Server) {
+                    $IdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $SID } -Server $Server -ErrorAction SilentlyContinue | Select-Object objectClass
+                }
+                else {
+                    $IdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $SID } -ErrorAction SilentlyContinue | Select-Object objectClass
+                }
+            }
+            else {
+                $IdentityReferenceObjectClass = $null
+            }
 
-            if ($Issue.IdentityReferenceSID -match $UnsafeUsers) {
+            if ($null -ne $Issue.IdentityReferenceSID -and $Issue.IdentityReferenceSID -match $UnsafeUsers) {
                 # Authenticated Users, Domain Users, Domain Computers etc. are very risky
                 $RiskValue += 2
                 $RiskScoring += 'Very Large Group: +2'
             }
-            elseif ($IdentityReferenceObjectClass -eq 'group') {
+            elseif ($null -ne $IdentityReferenceObjectClass -and $IdentityReferenceObjectClass.objectClass -eq 'group') {
                 # Groups are riskier than individual principals
                 $RiskValue += 1
                 $RiskScoring += 'Group: +1'
@@ -3592,7 +3877,7 @@ function Set-RiskRating {
     }
 
     # Template and object issues rely on a principal and have complex scoring.
-    if ($Issue.Technique -notin @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC17')) {
+    if ($Issue.Technique -notin @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC16')) {
         $RiskScoring += 'Base Score: 0'
 
         # Templates are more dangerous when enabled, but objects cannot be enabled/disabled.
@@ -3615,7 +3900,12 @@ function Set-RiskRating {
 
         # If an Issue can be tied to a principal, the principal's objectClass impacts the Issue's risk
         $SID = $Issue.IdentityReferenceSID.ToString()
-        $IdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $SID } | Select-Object objectClass
+        if ($Server) {
+            $IdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $SID } -Server $Server -ErrorAction SilentlyContinue | Select-Object objectClass
+        }
+        else {
+            $IdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $SID } -ErrorAction SilentlyContinue | Select-Object objectClass
+        }
 
 
         if ($Issue.IdentityReferenceSID -match $UnsafeUsers) {
@@ -4098,7 +4388,11 @@ function Test-IsMemberOfProtectedUsers {
         [Parameter(
             ValueFromPipeline = $true
         )]
-        $User
+        $User,
+
+        # Domain Controller to query
+        [Parameter()]
+        [string]$Server
     )
 
     begin {
@@ -4111,21 +4405,77 @@ function Test-IsMemberOfProtectedUsers {
         if (-not($User)) {
             # These two are different types. Fixed by referencing $CheckUser.SID later, but should fix here by using one type.
             $CurrentUser = ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name).Split('\')[-1]
-            $CheckUser = Get-ADUser $CurrentUser -Properties primaryGroupID
+            if ($Server) {
+                $CheckUser = Get-ADUser $CurrentUser -Properties primaryGroupID -Server $Server
+            }
+            else {
+                $CheckUser = Get-ADUser $CurrentUser -Properties primaryGroupID
+            }
         }
         else {
-            $CheckUser = Get-ADUser $User -Properties primaryGroupID
+            if ($Server) {
+                $CheckUser = Get-ADUser $User -Properties primaryGroupID -Server $Server
+            }
+            else {
+                $CheckUser = Get-ADUser $User -Properties primaryGroupID
+            }
         }
 
         # Get the Protected Users group by SID instead of by its name to ensure compatibility with any locale or language.
-        $DomainSID = (Get-ADDomain).DomainSID.Value
+        if ($Server) {
+            $DomainSID = (Get-ADDomain -Server $Server).DomainSID.Value
+        }
+        else {
+            $DomainSID = (Get-ADDomain).DomainSID.Value
+        }
         $ProtectedUsersSID = "$DomainSID-525"
 
-        # Get members of the Protected Users group for the current domain. Recuse in case groups are nested in it.
-        $ProtectedUsers = Get-ADGroupMember -Identity $ProtectedUsersSID -Recursive | Select-Object -Unique
+        # Get members of the Protected Users group for the current domain. Recurse in case groups are nested in it.
+        if ($Server) {
+            # Get-ADGroupMember doesn't work well from non-domain-joined systems
+            # Use Get-ADGroup and manually handle recursion
+            $ProtectedUsersSIDs = @()
+            $GroupsToProcess = @($ProtectedUsersSID)
+            $ProcessedGroups = @()
+
+            while ($GroupsToProcess.Count -gt 0) {
+                $CurrentGroup = $GroupsToProcess[0]
+                $GroupsToProcess = $GroupsToProcess[1..($GroupsToProcess.Count - 1)]
+                
+                if ($ProcessedGroups -contains $CurrentGroup) {
+                    continue
+                }
+                $ProcessedGroups += $CurrentGroup
+
+                try {
+                    $GroupMembers = Get-ADGroup -Identity $CurrentGroup -Server $Server -Properties Members -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Members
+                    foreach ($memberDN in $GroupMembers) {
+                        try {
+                            $memberObj = Get-ADObject -Identity $memberDN -Server $Server -Properties objectSid, objectClass -ErrorAction SilentlyContinue
+                            if ($memberObj.objectClass -eq 'group') {
+                                $GroupsToProcess += $memberObj.objectSid.Value
+                            }
+                            elseif ($memberObj.objectSid) {
+                                $ProtectedUsersSIDs += $memberObj.objectSid.Value
+                            }
+                        }
+                        catch {
+                            Write-Verbose "Unable to resolve member: $memberDN"
+                        }
+                    }
+                }
+                catch {
+                    Write-Verbose "Unable to query group: $CurrentGroup"
+                }
+            }
+            $ProtectedUsers = $ProtectedUsersSIDs | Select-Object -Unique
+        }
+        else {
+            $ProtectedUsers = (Get-ADGroupMember -Identity $ProtectedUsersSID -Recursive | Select-Object -Unique).SID.Value
+        }
 
         # Check if the current user is in the 'Protected Users' group
-        if ($ProtectedUsers.SID.Value -contains $CheckUser.SID) {
+        if ($ProtectedUsers -contains $CheckUser.SID.Value) {
             Write-Verbose "$($CheckUser.Name) ($($CheckUser.DistinguishedName)) is a member of the Protected Users group."
             $true
         }
@@ -5116,7 +5466,6 @@ function Invoke-Locksmith {
             'ESC15',
             'EKUwu',
             'ESC16',
-            'ESC17',
             'All',
             'PromptMe'
         )]
@@ -5129,10 +5478,14 @@ function Invoke-Locksmith {
 
         # The credential to use for working with ADCS.
         [Parameter()]
-        [System.Management.Automation.PSCredential]$Credential
+        [System.Management.Automation.PSCredential]$Credential,
+
+        # Domain Controller IP or FQDN. Required when running from non-domain-joined systems.
+        [Parameter()]
+        [string]$Server
     )
 
-    $Version = '2026.1.4.1426'
+    $Version = '2025.9.8'
     $LogoPart1 = @'
     _       _____  _______ _     _ _______ _______ _____ _______ _     _
     |      |     | |       |____/  |______ |  |  |   |      |    |_____|
@@ -5171,9 +5524,6 @@ function Invoke-Locksmith {
 
     # Extended Key Usages for client authentication. A requirement for ESC1, ESC3 Condition 2, and ESC13
     $ClientAuthEKUs = '1\.3\.6\.1\.5\.5\.7\.3\.2|1\.3\.6\.1\.5\.2\.3\.4|1\.3\.6\.1\.4\.1\.311\.20\.2\.2|2\.5\.29\.37\.0'
-
-    # Extended Key Usages for server authentication. A requirement for ESC17
-    $ServerAuthEKUs = '1\.3\.6\.1\.5\.5\.7\.3\.1'
 
     # GenericAll, WriteDacl, and WriteOwner all permit full control of an AD object.
     # WriteProperty may or may not permit full control depending the specific property and AD object type.
@@ -5221,52 +5571,171 @@ function Invoke-Locksmith {
     ### Generated variables
     # $Dictionary = New-Dictionary
 
-    $Forest = Get-ADForest
-    $ForestGC = $(Get-ADDomainController -Discover -Service GlobalCatalog -ForceDiscover | Select-Object -ExpandProperty Hostname) + ':3268'
-    # $DNSRoot = [string]($Forest.RootDomain | Get-ADDomain).DNSRoot
-    $EnterpriseAdminsSID = ([string]($Forest.RootDomain | Get-ADDomain).DomainSID) + '-519'
-    $PreferredOwner = [System.Security.Principal.SecurityIdentifier]::New($EnterpriseAdminsSID)
-    # $DomainSIDs = $Forest.Domains | ForEach-Object { (Get-ADDomain $_).DomainSID.Value }
+    if ($Server) {
+        $Forest = Get-ADForest -Server $Server
+        # Discover GC - don't use -Server with -Discover as they conflict
+        Try {
+            $GCHostname = (Get-ADDomainController -Discover -Service GlobalCatalog -ForceDiscover -DomainName $Forest.Name | Select-Object -ExpandProperty Hostname -First 1)
+            $ForestGC = "$GCHostname" + ':3268'
+        }
+        Catch {
+            Write-Warning "Unable to discover Global Catalog. Trying to use provided server as GC..."
+            # Try using the provided server as a GC
+            $ForestGC = "$Server" + ':3268'
+        }
+        # $DNSRoot = [string]($Forest.RootDomain | Get-ADDomain -Server $Server).DNSRoot
+        $EnterpriseAdminsSID = ([string]($Forest.RootDomain | Get-ADDomain -Server $Server).DomainSID) + '-519'
+        $PreferredOwner = [System.Security.Principal.SecurityIdentifier]::New($EnterpriseAdminsSID)
+        # $DomainSIDs = $Forest.Domains | ForEach-Object { (Get-ADDomain $_ -Server $Server).DomainSID.Value }
 
-    # Add SIDs of (probably) Safe Users to $SafeUsers
-    Get-ADGroupMember $EnterpriseAdminsSID | ForEach-Object {
-        $SafeUsers += '|' + $_.SID.Value
+        # Add SIDs of (probably) Safe Users to $SafeUsers
+        # Get-ADGroupMember doesn't work well from non-domain-joined systems, use Get-ADGroup instead
+        $EnterpriseAdminsMembers = Get-ADGroup -Identity $EnterpriseAdminsSID -Server $Server -Properties Members | Select-Object -ExpandProperty Members
+        foreach ($memberDN in $EnterpriseAdminsMembers) {
+            try {
+                $memberObj = Get-ADObject -Identity $memberDN -Server $Server -Properties objectSid
+                $SafeUsers += '|' + $memberObj.objectSid.Value
+            }
+            catch {
+                Write-Verbose "Unable to resolve SID for $memberDN"
+            }
+        }
+
+        $Forest.Domains | ForEach-Object {
+            $DomainName = $_
+            # From non-domain-joined systems, try multiple approaches to query each domain
+            $DomainDC = $null
+            
+            # Approach 1: Try the provided server (works if it can see other domains)
+            Try {
+                $TestDomain = Get-ADDomain -Identity $DomainName -Server $Server -ErrorAction Stop
+                $DomainDC = $Server
+                Write-Verbose "Using provided server $Server for domain $DomainName"
+            }
+            Catch {
+                # Approach 2: Try discovering a DC for this domain
+                Try {
+                    $DiscoveredDC = (Get-ADDomainController -Discover -DomainName $DomainName -ForceDiscover | Select-Object -ExpandProperty HostName -First 1)
+                    $DomainDC = "$DiscoveredDC"
+                    Write-Verbose "Discovered DC for domain $DomainName : $DomainDC"
+                }
+                Catch {
+                    # Approach 3: Try using the domain FQDN itself
+                    Try {
+                        $TestDomain = Get-ADDomain -Identity $DomainName -Server $DomainName -ErrorAction Stop
+                        $DomainDC = $DomainName
+                        Write-Verbose "Using domain FQDN $DomainName as server"
+                    }
+                    Catch {
+                        Write-Warning "Unable to contact domain $DomainName. Skipping..."
+                        return
+                    }
+                }
+            }
+
+            $DomainSID = (Get-ADDomain $DomainName -Server $DomainDC).DomainSID.Value
+            <#
+                -517 = Cert Publishers
+                -512 = Domain Admins group
+            #>
+            $SafeGroupRIDs = @('-517', '-512')
+
+            # Administrators group
+            $SafeGroupSIDs = @('S-1-5-32-544')
+            foreach ($rid in $SafeGroupRIDs ) {
+                $SafeGroupSIDs += $DomainSID + $rid
+            }
+            foreach ($sid in $SafeGroupSIDs) {
+                try {
+                    # Get-ADGroupMember doesn't work well from non-domain-joined systems
+                    $groupMembers = Get-ADGroup -Identity $sid -Server $DomainDC -Properties Members -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Members
+                    foreach ($memberDN in $groupMembers) {
+                        try {
+                            $memberObj = Get-ADObject -Identity $memberDN -Server $DomainDC -Properties objectSid -ErrorAction SilentlyContinue
+                            if ($memberObj.objectSid) {
+                                $users += $memberObj.objectSid.Value
+                            }
+                        }
+                        catch {
+                            Write-Verbose "Unable to resolve member: $memberDN"
+                        }
+                    }
+                }
+                catch {
+                    Write-Verbose "Unable to query group: $sid in domain $DomainName"
+                }
+            }
+            foreach ($user in $users) {
+                $SafeUsers += '|' + $user
+            }
+        }
     }
+    else {
+        $Forest = Get-ADForest
+        $ForestGC = $(Get-ADDomainController -Discover -Service GlobalCatalog -ForceDiscover | Select-Object -ExpandProperty Hostname) + ':3268'
+        # $DNSRoot = [string]($Forest.RootDomain | Get-ADDomain).DNSRoot
+        $EnterpriseAdminsSID = ([string]($Forest.RootDomain | Get-ADDomain).DomainSID) + '-519'
+        $PreferredOwner = [System.Security.Principal.SecurityIdentifier]::New($EnterpriseAdminsSID)
+        # $DomainSIDs = $Forest.Domains | ForEach-Object { (Get-ADDomain $_).DomainSID.Value }
 
-    $Forest.Domains | ForEach-Object {
-        $DomainSID = (Get-ADDomain $_).DomainSID.Value
-        <#
-            -517 = Cert Publishers
-            -512 = Domain Admins group
-        #>
-        $SafeGroupRIDs = @('-517', '-512')
+        # Add SIDs of (probably) Safe Users to $SafeUsers
+        Get-ADGroupMember $EnterpriseAdminsSID | ForEach-Object {
+            $SafeUsers += '|' + $_.SID.Value
+        }
 
-        # Administrators group
-        $SafeGroupSIDs = @('S-1-5-32-544')
-        foreach ($rid in $SafeGroupRIDs ) {
-            $SafeGroupSIDs += $DomainSID + $rid
-        }
-        foreach ($sid in $SafeGroupSIDs) {
-            $users += (Get-ADGroupMember $sid -Server $_ -Recursive).SID.Value
-        }
-        foreach ($user in $users) {
-            $SafeUsers += '|' + $user
+        $Forest.Domains | ForEach-Object {
+            $DomainSID = (Get-ADDomain $_).DomainSID.Value
+            <#
+                -517 = Cert Publishers
+                -512 = Domain Admins group
+            #>
+            $SafeGroupRIDs = @('-517', '-512')
+
+            # Administrators group
+            $SafeGroupSIDs = @('S-1-5-32-544')
+            foreach ($rid in $SafeGroupRIDs ) {
+                $SafeGroupSIDs += $DomainSID + $rid
+            }
+            foreach ($sid in $SafeGroupSIDs) {
+                $users += (Get-ADGroupMember $sid -Server $_ -Recursive).SID.Value
+            }
+            foreach ($user in $users) {
+                $SafeUsers += '|' + $user
+            }
         }
     }
     $SafeUsers = $SafeUsers.Replace('||', '|')
 
-    if ($Credential) {
+    if ($Credential -and $Server) {
+        $Targets = Get-Target -Credential $Credential -Server $Server
+    }
+    elseif ($Credential) {
         $Targets = Get-Target -Credential $Credential
+    }
+    elseif ($Server) {
+        $Targets = Get-Target -Server $Server
     }
     else {
         $Targets = Get-Target
     }
 
     Write-Host "Gathering AD CS Objects from $($Targets)..."
-    if ($Credential) {
+    if ($Credential -and $Server) {
+        $ADCSObjects = Get-ADCSObject -Targets $Targets -Credential $Credential -Server $Server
+        Set-AdditionalCAProperty -ADCSObjects $ADCSObjects -Credential $Credential -ForestGC $ForestGC
+        $CAHosts = Get-CAHostObject -ADCSObjects $ADCSObjects -Credential $Credential -ForestGC $ForestGC
+        $ADCSObjects += $CAHosts
+    }
+    elseif ($Credential) {
         $ADCSObjects = Get-ADCSObject -Targets $Targets -Credential $Credential
         Set-AdditionalCAProperty -ADCSObjects $ADCSObjects -Credential $Credential -ForestGC $ForestGC
         $CAHosts = Get-CAHostObject -ADCSObjects $ADCSObjects -Credential $Credential -ForestGC $ForestGC
+        $ADCSObjects += $CAHosts
+    }
+    elseif ($Server) {
+        $ADCSObjects = Get-ADCSObject -Targets $Targets -Server $Server
+        Set-AdditionalCAProperty -ADCSObjects $ADCSObjects -ForestGC $ForestGC
+        $CAHosts = Get-CAHostObject -ADCSObjects $ADCSObjects -ForestGC $ForestGC
         $ADCSObjects += $CAHosts
     }
     else {
@@ -5286,7 +5755,6 @@ function Invoke-Locksmith {
     $ScansParameters = @{
         ADCSObjects        = $ADCSObjects
         ClientAuthEkus     = $ClientAuthEKUs
-        ServerAuthEKUs     = $ServerAuthEKUs
         DangerousRights    = $DangerousRights
         EnrollmentAgentEKU = $EnrollmentAgentEKU
         Mode               = $Mode
@@ -5296,6 +5764,9 @@ function Invoke-Locksmith {
         Scans              = $Scans
         UnsafeUsers        = $UnsafeUsers
         PreferredOwner     = $PreferredOwner
+    }
+    if ($Server) {
+        $ScansParameters['Server'] = $Server
     }
     $Results = Invoke-Scans @ScansParameters
     # Re-hydrate the findings arrays from the Results hash table
@@ -5314,7 +5785,6 @@ function Invoke-Locksmith {
     $ESC13 = $Results['ESC13']
     $ESC15 = $Results['ESC15']
     $ESC16 = $Results['ESC16']
-    $ESC17 = $Results['ESC17']
 
     # If these are all empty = no issues found, exit
     if ($null -eq $Results) {
@@ -5340,7 +5810,6 @@ function Invoke-Locksmith {
             Format-Result -Issue $ESC13 -Mode 0
             Format-Result -Issue $ESC15 -Mode 0
             Format-Result -Issue $ESC16 -Mode 0
-            Format-Result -Issue $ESC17 -Mode 0
             Write-Host @"
 [!] You ran Locksmith in Mode 0 which only provides an high-level overview of issues
 identified in the environment. For more details including:
@@ -5375,7 +5844,6 @@ Invoke-Locksmith -Mode 1
             Format-Result -Issue $ESC13 -Mode 1
             Format-Result -Issue $ESC15 -Mode 1
             Format-Result -Issue $ESC16 -Mode 1
-            Format-Result -Issue $ESC17 -Mode 1
         }
         2 {
             $Output = Join-Path -Path $OutputPath -ChildPath "$FilePrefix ADCSIssues.CSV"
@@ -5420,4 +5888,9 @@ Invoke-Locksmith -Mode 1
 }
 
 
-Invoke-Locksmith -Mode $Mode -Scans $Scans
+if ($Server) {
+    Invoke-Locksmith -Mode $Mode -Scans $Scans -Server $Server
+}
+else {
+    Invoke-Locksmith -Mode $Mode -Scans $Scans
+}
