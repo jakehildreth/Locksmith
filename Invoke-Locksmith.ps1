@@ -605,7 +605,7 @@ More info:
 
 <#
     Option 2: Scripted Remediation
-    Step 1: Open an elevated Powershell session as an AD or PKI Admin
+    Step 1: Open an elevated PowerShell session as an AD or PKI Admin
     Step 2: Run Unpublish-SchemaV1Templates.ps1
 #>
 Invoke-WebRequest -Uri https://gist.githubusercontent.com/jakehildreth/13c7d615adc905d317fc4379026ad28e/raw/Unpublish-SchemaV1Templates.ps1 | Invoke-Expression
@@ -2720,7 +2720,7 @@ function Invoke-Remediation {
             Write-Host "$($_.Technique)`n"
             Write-Host 'ACTION TO BE PERFORMED:' -ForegroundColor White
             Write-Host "Locksmith will attempt to enable Manager Approval on the `"$($_.Name)`" template.`n"
-            Write-Host 'CCOMMAND(S) TO BE RUN:'
+            Write-Host 'COMMAND(S) TO BE RUN:'
             Write-Host 'PS> ' -NoNewline
             Write-Host "$($_.Fix)`n" -ForegroundColor Cyan
             Write-Host 'OPERATIONAL IMPACT:' -ForegroundColor White
@@ -4874,7 +4874,7 @@ function Write-HostColorized {
             }
         }
         # Otherwise: $PSCmdlet.ParameterSetName -eq 'PerPatternColor', i.e. a dictionary
-        #            mapping patterns to colors was direclty passed in $PatternColorMap
+        #            mapping patterns to colors was directly passed in $PatternColorMap
 
         try {
 
@@ -5019,7 +5019,7 @@ function Invoke-Locksmith {
     Finds the most common malconfigurations of Active Directory Certificate Services (AD CS).
 
     .DESCRIPTION
-    Locksmith uses the Active Directory (AD) Powershell (PS) module to identify 10 misconfigurations
+    Locksmith uses the Active Directory (AD) PowerShell (PS) module to identify 10 misconfigurations
     commonly found in Enterprise mode AD CS installations.
 
     .COMPONENT
@@ -5037,7 +5037,7 @@ function Invoke-Locksmith {
 
     -Mode 1
     Finds any malconfigurations and displays them in the console.
-    Displays example Powershell snippet that can be used to resolve the issue.
+    Displays example PowerShell snippet that can be used to resolve the issue.
     No attempt is made to fix identified issues.
 
     -Mode 2
@@ -5342,7 +5342,7 @@ function Invoke-Locksmith {
             Format-Result -Issue $ESC16 -Mode 0
             Format-Result -Issue $ESC17 -Mode 0
             Write-Host @"
-[!] You ran Locksmith in Mode 0 which only provides an high-level overview of issues
+[!] You ran Locksmith in Mode 0 which only provides a high-level overview of issues
 identified in the environment. For more details including:
 
   - Detailed Risk Rating
@@ -5385,7 +5385,7 @@ Invoke-Locksmith -Mode 1
                 Write-Host "$Output created successfully!`n"
             }
             catch {
-                Write-Host 'Ope! Something broke.'
+                Write-Host "ERROR: Failed to write '$Output'. $($_.Exception.Message)"
             }
         }
         3 {
@@ -5396,7 +5396,7 @@ Invoke-Locksmith -Mode 1
                 Write-Host "$Output created successfully!`n"
             }
             catch {
-                Write-Host 'Ope! Something broke.'
+                Write-Host "ERROR: Failed to write '$Output'. $($_.Exception.Message)"
             }
         }
         4 {
