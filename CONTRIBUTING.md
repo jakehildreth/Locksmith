@@ -33,7 +33,7 @@ to <coc@dotdot.horse>.
 
 ## Security
 
-Never report security related issues, vulnerabilities, or bugs including
+Never report security-related issues, vulnerabilities, or bugs including
 sensitive information to the issue tracker or elsewhere in public. Follow the
 [Locksmith Security Policy](SECURITY.md) instead.
 
