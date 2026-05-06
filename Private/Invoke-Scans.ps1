@@ -88,8 +88,10 @@ function Invoke-Scans {
         }
         ESC3 {
             Write-Host 'Identifying AD CS templates with dangerous ESC3 configurations...'
-            [array]$ESC3 = @(Find-ESC3C1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers) +
-                @(Find-ESC3C2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers)
+            [array]$ESC3 = @(
+                Find-ESC3C1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                Find-ESC3C2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            )
         }
         ESC4 {
             Write-Host 'Identifying AD CS templates with poor access control (ESC4)...'
