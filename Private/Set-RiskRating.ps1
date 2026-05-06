@@ -35,8 +35,16 @@ function Get-SidObjectClass {
     }
 
     if (-not $script:SidObjectClassCache.ContainsKey($Sid)) {
-        $script:SidObjectClassCache[$Sid] = Get-ADObject -Filter { objectSid -eq $Sid } |
-            Select-Object objectClass
+        try {
+            # Use -ErrorAction Stop so transient ADWS/AD errors throw rather than producing
+            # $null output. Only cache a result (including $null for a genuine "not found")
+            # on success; leave the key absent on error so the next call can retry.
+            $result = Get-ADObject -Filter { objectSid -eq $Sid } -ErrorAction Stop |
+                Select-Object objectClass
+            $script:SidObjectClassCache[$Sid] = $result
+        } catch {
+            Write-Warning "Get-SidObjectClass: AD lookup failed for SID '$Sid': $_"
+        }
     }
 
     return $script:SidObjectClassCache[$Sid]
