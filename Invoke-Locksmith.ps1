@@ -3529,7 +3529,10 @@ function Get-SidObjectClass {
                 Select-Object objectClass
             $script:SidObjectClassCache[$Sid] = $result
         } catch {
-            Write-Warning "Get-SidObjectClass: AD lookup failed for SID '$Sid': $_"
+            # Re-emit to the error stream so callers can detect/handle failures and so
+            # $ErrorActionPreference is honoured. The key is intentionally left absent
+            # so a subsequent call can retry the AD query.
+            Write-Error -ErrorRecord $_
         }
     }
 
