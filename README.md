@@ -34,6 +34,7 @@ A small tool built to find and fix common misconfigurations in Active Directory 
    4. [Mode 3](#mode-3-identify-issues-and-fixes-output-to-csv)
    5. [Mode 4](#mode-4-fix-all-issues)
    6. [Scans](#scans)
+3. [Security and Support](#security-and-support)
 
 <a name="installation" id="installation"></a>
 ## Installation
@@ -189,5 +190,10 @@ Invoke-Locksmith.ps1 -Scans ESC1
 # Scan for ESC1, ESC2, and ESC8 vulnerable paths
 Invoke-Locksmith.ps1 -Scans ESC1,ESC2,ESC8
 ```
+
+## Security and Support
+
+For vulnerability reporting, see the [Security Policy](SECURITY.md).
+For usage questions and support guidance, see [Support](SUPPORT.md).
 
 Thank you for using Locksmith! 💜

@@ -16,6 +16,8 @@ All types of contributions are encouraged and valued. See the [Table of Contents
 
 - [Contributing to Locksmith](#contributing-to-locksmith)
   - [Code of Conduct](#code-of-conduct)
+  - [Security](#security)
+  - [Support](#support)
   - [I Have a Question](#i-have-a-question)
   - [I Want To Contribute](#i-want-to-contribute)
     - [Reporting Bugs](#reporting-bugs)
@@ -28,6 +30,17 @@ This project and everyone participating in it is governed by the
 [Locksmith Code of Conduct](https://github.com/jakehildreth/Locksmith/blob/main/CODE_OF_CONDUCT.md).
 By participating, you are expected to uphold this code. Please report unacceptable behavior
 to <coc@dotdot.horse>.
+
+## Security
+
+Never report security-related issues, vulnerabilities, or bugs including
+sensitive information to the issue tracker or elsewhere in public. Follow the
+[Locksmith Security Policy](SECURITY.md) instead.
+
+## Support
+
+For usage questions, troubleshooting, and bug report guidance, see
+[Locksmith Support](SUPPORT.md).
 
 ## I Have a Question
 
