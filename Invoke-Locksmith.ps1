@@ -5381,7 +5381,7 @@ Invoke-Locksmith -Mode 1
             $Output = Join-Path -Path $OutputPath -ChildPath "$FilePrefix ADCSIssues.CSV"
             Write-Host "Writing AD CS issues to $Output..."
             try {
-                $AllIssues | Select-Object Forest, Technique, Name, Issue, @{l = 'Risk'; e = { $_.RiskName } } | Export-Csv -NoTypeInformation $Output
+                $AllIssues | Select-Object Forest, Technique, Name, Issue, @{l = 'Risk'; e = { $_.RiskName } } | Export-Csv -NoTypeInformation -Encoding UTF8 $Output
                 Write-Host "$Output created successfully!`n"
             }
             catch {
