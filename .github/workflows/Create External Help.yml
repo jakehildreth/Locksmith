@@ -8,13 +8,16 @@ on:
   # push:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   package_help:
     # The New-ExternalHelpCab cmdlet uses makecab, which depends on Windows.
     runs-on: windows-latest
     steps:
       - name: ✅ Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: 📁 Display the Path
         shell: pwsh
         run: echo ${env:PATH}

@@ -10,7 +10,7 @@
       </maml:description>
     </command:details>
     <maml:description>
-      <maml:para>Locksmith uses the Active Directory (AD) Powershell (PS) module to identify 10 misconfigurations commonly found in Enterprise mode AD CS installations.</maml:para>
+      <maml:para>Locksmith uses the Active Directory (AD) PowerShell (PS) module to identify 10 misconfigurations commonly found in Enterprise mode AD CS installations.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -20,7 +20,7 @@
           <maml:description>
             <maml:para>Specifies sets of common script execution modes.</maml:para>
             <maml:para>-Mode 0 Finds any malconfigurations and displays them in the console. No attempt is made to fix identified issues.</maml:para>
-            <maml:para>-Mode 1 Finds any malconfigurations and displays them in the console. Displays example Powershell snippet that can be used to resolve the issue. No attempt is made to fix identified issues.</maml:para>
+            <maml:para>-Mode 1 Finds any malconfigurations and displays them in the console. Displays example PowerShell snippet that can be used to resolve the issue. No attempt is made to fix identified issues.</maml:para>
             <maml:para>-Mode 2 Finds any malconfigurations and writes them to a series of CSV files. No attempt is made to fix identified issues.</maml:para>
             <maml:para>-Mode 3 Finds any malconfigurations and writes them to a series of CSV files. Creates code snippets to fix each issue and writes them to an environment-specific custom .PS1 file. No attempt is made to fix identified issues.</maml:para>
             <maml:para>-Mode 4 Finds any malconfigurations and creates code snippets to fix each issue. Attempts to fix all identified issues. This mode may require high-privileged access.</maml:para>
@@ -78,7 +78,7 @@
         <maml:description>
           <maml:para>Specifies sets of common script execution modes.</maml:para>
           <maml:para>-Mode 0 Finds any malconfigurations and displays them in the console. No attempt is made to fix identified issues.</maml:para>
-          <maml:para>-Mode 1 Finds any malconfigurations and displays them in the console. Displays example Powershell snippet that can be used to resolve the issue. No attempt is made to fix identified issues.</maml:para>
+          <maml:para>-Mode 1 Finds any malconfigurations and displays them in the console. Displays example PowerShell snippet that can be used to resolve the issue. No attempt is made to fix identified issues.</maml:para>
           <maml:para>-Mode 2 Finds any malconfigurations and writes them to a series of CSV files. No attempt is made to fix identified issues.</maml:para>
           <maml:para>-Mode 3 Finds any malconfigurations and writes them to a series of CSV files. Creates code snippets to fix each issue and writes them to an environment-specific custom .PS1 file. No attempt is made to fix identified issues.</maml:para>
           <maml:para>-Mode 4 Finds any malconfigurations and creates code snippets to fix each issue. Attempts to fix all identified issues. This mode may require high-privileged access.</maml:para>

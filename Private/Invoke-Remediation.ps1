@@ -314,7 +314,7 @@ function Invoke-Remediation {
             Write-Host "$($_.Technique)`n"
             Write-Host 'ACTION TO BE PERFORMED:' -ForegroundColor White
             Write-Host "Locksmith will attempt to enable Manager Approval on the `"$($_.Name)`" template.`n"
-            Write-Host 'CCOMMAND(S) TO BE RUN:'
+            Write-Host 'COMMAND(S) TO BE RUN:'
             Write-Host 'PS> ' -NoNewline
             Write-Host "$($_.Fix)`n" -ForegroundColor Cyan
             Write-Host 'OPERATIONAL IMPACT:' -ForegroundColor White
