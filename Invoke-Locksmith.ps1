@@ -2789,6 +2789,8 @@ function Invoke-Scans {
     [CmdletBinding()]
     [OutputType([hashtable])]
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Performing multiple scans.')]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'EnrollmentAgentEKU', Justification = 'Parameter is part of the public API and reserved for future ESC13 enrollment-agent scan support.')]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'PreferredOwner', Justification = 'Parameter is part of the public API and reserved for planned remediation ownership integration.')]
     param (
         # Could split Scans and PromptMe into separate parameter sets.
         [Parameter(Mandatory)]

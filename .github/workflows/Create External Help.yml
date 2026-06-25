@@ -8,6 +8,9 @@ on:
   # push:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   package_help:
     # The New-ExternalHelpCab cmdlet uses makecab, which depends on Windows.
