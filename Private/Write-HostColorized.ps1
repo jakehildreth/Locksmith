@@ -126,7 +126,7 @@ Function Write-HostColorized {
 
         }
         # Otherwise: $PSCmdlet.ParameterSetName -eq 'PerPatternColor', i.e. a dictionary
-        #            mapping patterns to colors was direclty passed in $PatternColorMap
+        #            mapping patterns to colors was directly passed in $PatternColorMap
 
         try {
 

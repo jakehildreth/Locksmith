@@ -84,7 +84,7 @@ More info:
 
 <#
     Option 2: Scripted Remediation
-    Step 1: Open an elevated Powershell session as an AD or PKI Admin
+    Step 1: Open an elevated PowerShell session as an AD or PKI Admin
     Step 2: Run Unpublish-SchemaV1Templates.ps1
 #>
 Invoke-WebRequest -Uri https://gist.githubusercontent.com/jakehildreth/13c7d615adc905d317fc4379026ad28e/raw/Unpublish-SchemaV1Templates.ps1 | Invoke-Expression

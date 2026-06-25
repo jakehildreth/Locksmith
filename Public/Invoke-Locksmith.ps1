@@ -4,7 +4,7 @@ function Invoke-Locksmith {
     Finds the most common malconfigurations of Active Directory Certificate Services (AD CS).
 
     .DESCRIPTION
-    Locksmith uses the Active Directory (AD) Powershell (PS) module to identify 10 misconfigurations
+    Locksmith uses the Active Directory (AD) PowerShell (PS) module to identify 10 misconfigurations
     commonly found in Enterprise mode AD CS installations.
 
     .COMPONENT
@@ -22,7 +22,7 @@ function Invoke-Locksmith {
 
     -Mode 1
     Finds any malconfigurations and displays them in the console.
-    Displays example Powershell snippet that can be used to resolve the issue.
+    Displays example PowerShell snippet that can be used to resolve the issue.
     No attempt is made to fix identified issues.
 
     -Mode 2
@@ -324,7 +324,7 @@ function Invoke-Locksmith {
             Format-Result -Issue $ESC16 -Mode 0
             Format-Result -Issue $ESC17 -Mode 0
             Write-Host @"
-[!] You ran Locksmith in Mode 0 which only provides an high-level overview of issues
+[!] You ran Locksmith in Mode 0 which only provides a high-level overview of issues
 identified in the environment. For more details including:
 
   - Detailed Risk Rating
@@ -366,7 +366,7 @@ Invoke-Locksmith -Mode 1
                 $AllIssues | Select-Object Forest, Technique, Name, Issue, @{l = 'Risk'; e = { $_.RiskName } } | Export-Csv -NoTypeInformation -Encoding UTF8 $Output
                 Write-Host "$Output created successfully!`n"
             } catch {
-                Write-Host 'Ope! Something broke.'
+                Write-Host "ERROR: Failed to write '$Output'. $($_.Exception.Message)"
             }
         }
         3 {
@@ -376,7 +376,7 @@ Invoke-Locksmith -Mode 1
                 $AllIssues | Select-Object Forest, Technique, Name, DistinguishedName, Issue, Fix, @{l = 'Risk'; e = { $_.RiskName } }, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } | Export-Csv -NoTypeInformation -Encoding UTF8 $Output
                 Write-Host "$Output created successfully!`n"
             } catch {
-                Write-Host 'Ope! Something broke.'
+                Write-Host "ERROR: Failed to write '$Output'. $($_.Exception.Message)"
             }
         }
         4 {

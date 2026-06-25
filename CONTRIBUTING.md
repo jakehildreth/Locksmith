@@ -39,7 +39,7 @@ If you then still feel the need to ask a question and need clarification, we rec
 
 - Open an [Issue](https://github.com/jakehildreth/Locksmith/issues/new/choose).
 - Provide as much context as you can about what you're running into.
-- Provide project and platform versions (Windows Version, Powershell Version, Windows Terminal, etc.), depending on what seems relevant.
+- Provide project and platform versions (Windows Version, PowerShell Version, Windows Terminal, etc.), depending on what seems relevant.
 
 We will then take care of the issue as soon as possible.
 
@@ -65,7 +65,7 @@ A good bug report shouldn't leave others needing to chase you up for more inform
 - Collect information about the bug:
   - OS, platform, and version of client machine. (Locksmith is only supported on Windows 10+/2016+ at this time.)
   - Single or multi-domain forest?
-  - PowerShell version, edition, and shell (Windows Powershell / Windows PowerShell ISE / PowerShell / Windows Terminal)
+  - PowerShell version, edition, and shell (Windows PowerShell / Windows PowerShell ISE / PowerShell / Windows Terminal)
   - Possibly your input and the output
   - Can you reliably reproduce the issue?
 
