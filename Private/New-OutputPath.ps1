@@ -4,8 +4,8 @@
         Creates output directories for each forest.
 
     .DESCRIPTION
-        This script creates one output directory per forest specified in the $Targets variable.
-        The output directories are created under the $OutputPath directory.
+        Creates one output directory per forest specified in the Targets parameter.
+        The output directories are created under the OutputPath directory.
 
     .PARAMETER Targets
         Specifies the forests for which output directories need to be created.
@@ -20,10 +20,17 @@
     #>
 
     [CmdletBinding(SupportsShouldProcess)]
-    param ()
-    # Create one output directory per forest
-    foreach ( $forest in $Targets ) {
-        $ForestPath = $OutputPath + "`\" + $forest
-        New-Item -Path $ForestPath -ItemType Directory -Force  | Out-Null
+    param (
+        [Parameter(Mandatory)]
+        [array]$Targets,
+
+        [Parameter(Mandatory)]
+        [string]$OutputPath
+    )
+    foreach ($forest in $Targets) {
+        $ForestPath = Join-Path -Path $OutputPath -ChildPath $forest
+        if ($PSCmdlet.ShouldProcess($ForestPath, 'Create directory')) {
+            New-Item -Path $ForestPath -ItemType Directory -Force | Out-Null
+        }
     }
 }
