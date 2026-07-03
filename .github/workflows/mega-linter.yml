@@ -45,7 +45,7 @@ jobs:
         # You can override MegaLinter flavor used to have faster performances
         # More info at https://megalinter.io/flavors/
         # The dotnet flavor includes PowerShell, MD, YAML, JSON, spelling, and more.
-        uses: oxsecurity/megalinter/flavors/dotnet@v9.5.0
+        uses: oxsecurity/megalinter/flavors/dotnet@v9.6.0
 
         id: ml
 
