@@ -38,10 +38,9 @@
                     $Enabled = $true
                     $EnabledOn += $ca.Name
                 }
-
-                $template | Add-Member -NotePropertyName Enabled -NotePropertyValue $Enabled -Force
-                $template | Add-Member -NotePropertyName EnabledOn -NotePropertyValue $EnabledOn -Force
             }
+            $template | Add-Member -NotePropertyName Enabled -NotePropertyValue $Enabled -Force
+            $template | Add-Member -NotePropertyName EnabledOn -NotePropertyValue $EnabledOn -Force
         }
     }
 }
