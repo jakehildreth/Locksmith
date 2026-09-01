@@ -1,4 +1,4 @@
-﻿[CmdletBinding(HelpUri = 'https://jakehildreth.github.io/Locksmith/Invoke-Locksmith')]
+[CmdletBinding(HelpUri = 'https://jakehildreth.github.io/Locksmith/Invoke-Locksmith')]
 param (
     # The mode to run Locksmith in. Defaults to 0.
     [Parameter(Mandatory = $false)]
@@ -605,7 +605,7 @@ More info:
 
 <#
     Option 2: Scripted Remediation
-    Step 1: Open an elevated Powershell session as an AD or PKI Admin
+    Step 1: Open an elevated PowerShell session as an AD or PKI Admin
     Step 2: Run Unpublish-SchemaV1Templates.ps1
 #>
 Invoke-WebRequest -Uri https://gist.githubusercontent.com/jakehildreth/13c7d615adc905d317fc4379026ad28e/raw/Unpublish-SchemaV1Templates.ps1 | Invoke-Expression
@@ -2720,7 +2720,7 @@ function Invoke-Remediation {
             Write-Host "$($_.Technique)`n"
             Write-Host 'ACTION TO BE PERFORMED:' -ForegroundColor White
             Write-Host "Locksmith will attempt to enable Manager Approval on the `"$($_.Name)`" template.`n"
-            Write-Host 'CCOMMAND(S) TO BE RUN:'
+            Write-Host 'COMMAND(S) TO BE RUN:'
             Write-Host 'PS> ' -NoNewline
             Write-Host "$($_.Fix)`n" -ForegroundColor Cyan
             Write-Host 'OPERATIONAL IMPACT:' -ForegroundColor White
@@ -2789,6 +2789,8 @@ function Invoke-Scans {
     [CmdletBinding()]
     [OutputType([hashtable])]
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Performing multiple scans.')]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'EnrollmentAgentEKU', Justification = 'Parameter is part of the public API and reserved for future ESC13 enrollment-agent scan support.')]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'PreferredOwner', Justification = 'Parameter is part of the public API and reserved for planned remediation ownership integration.')]
     param (
         # Could split Scans and PromptMe into separate parameter sets.
         [Parameter(Mandatory)]
@@ -2849,8 +2851,10 @@ function Invoke-Scans {
         }
         ESC3 {
             Write-Host 'Identifying AD CS templates with dangerous ESC3 configurations...'
-            [array]$ESC3 = Find-ESC3C1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
-            [array]$ESC3 += Find-ESC3C2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            [array]$ESC3 = @(
+                Find-ESC3C1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                Find-ESC3C2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            )
         }
         ESC4 {
             Write-Host 'Identifying AD CS templates with poor access control (ESC4)...'
@@ -2908,8 +2912,10 @@ function Invoke-Scans {
             Write-Host 'Identifying AD CS templates with dangerous ESC2 configurations...'
             [array]$ESC2 = Find-ESC2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
             Write-Host 'Identifying AD CS templates with dangerous ESC3 configurations...'
-            [array]$ESC3 = Find-ESC3C1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
-            [array]$ESC3 += Find-ESC3C2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            [array]$ESC3 = @(
+                Find-ESC3C1 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+                Find-ESC3C2 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+            )
             Write-Host 'Identifying AD CS templates with poor access control (ESC4)...'
             [array]$ESC4 = Find-ESC4 -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -DangerousRights $DangerousRights -SafeOwners $SafeOwners -SafeObjectTypes $SafeObjectTypes -Mode $Mode -UnsafeUsers $UnsafeUsers
             Write-Host 'Identifying AD CS objects with poor access control (ESC5)...'
@@ -3136,8 +3142,8 @@ function New-OutputPath {
         Creates output directories for each forest.
 
     .DESCRIPTION
-        This script creates one output directory per forest specified in the $Targets variable.
-        The output directories are created under the $OutputPath directory.
+        Creates one output directory per forest specified in the Targets parameter.
+        The output directories are created under the OutputPath directory.
 
     .PARAMETER Targets
         Specifies the forests for which output directories need to be created.
@@ -3152,11 +3158,18 @@ function New-OutputPath {
     #>
 
     [CmdletBinding(SupportsShouldProcess)]
-    param ()
-    # Create one output directory per forest
-    foreach ( $forest in $Targets ) {
-        $ForestPath = $OutputPath + "`\" + $forest
-        New-Item -Path $ForestPath -ItemType Directory -Force  | Out-Null
+    param (
+        [Parameter(Mandatory)]
+        [array]$Targets,
+
+        [Parameter(Mandatory)]
+        [string]$OutputPath
+    )
+    foreach ($forest in $Targets) {
+        $ForestPath = Join-Path -Path $OutputPath -ChildPath $forest
+        if ($PSCmdlet.ShouldProcess($ForestPath, 'Create directory')) {
+            New-Item -Path $ForestPath -ItemType Directory -Force | Out-Null
+        }
     }
 }
 
@@ -3476,10 +3489,9 @@ function Set-AdditionalTemplateProperty {
                     $Enabled = $true
                     $EnabledOn += $ca.Name
                 }
-
-                $template | Add-Member -NotePropertyName Enabled -NotePropertyValue $Enabled -Force
-                $template | Add-Member -NotePropertyName EnabledOn -NotePropertyValue $EnabledOn -Force
             }
+            $template | Add-Member -NotePropertyName Enabled -NotePropertyValue $Enabled -Force
+            $template | Add-Member -NotePropertyName EnabledOn -NotePropertyValue $EnabledOn -Force
         }
     }
 }
@@ -4929,7 +4941,7 @@ function Write-HostColorized {
             }
         }
         # Otherwise: $PSCmdlet.ParameterSetName -eq 'PerPatternColor', i.e. a dictionary
-        #            mapping patterns to colors was direclty passed in $PatternColorMap
+        #            mapping patterns to colors was directly passed in $PatternColorMap
 
         try {
 
@@ -5074,7 +5086,7 @@ function Invoke-Locksmith {
     Finds the most common malconfigurations of Active Directory Certificate Services (AD CS).
 
     .DESCRIPTION
-    Locksmith uses the Active Directory (AD) Powershell (PS) module to identify 10 misconfigurations
+    Locksmith uses the Active Directory (AD) PowerShell (PS) module to identify 10 misconfigurations
     commonly found in Enterprise mode AD CS installations.
 
     .COMPONENT
@@ -5092,7 +5104,7 @@ function Invoke-Locksmith {
 
     -Mode 1
     Finds any malconfigurations and displays them in the console.
-    Displays example Powershell snippet that can be used to resolve the issue.
+    Displays example PowerShell snippet that can be used to resolve the issue.
     No attempt is made to fix identified issues.
 
     -Mode 2
@@ -5397,7 +5409,7 @@ function Invoke-Locksmith {
             Format-Result -Issue $ESC16 -Mode 0
             Format-Result -Issue $ESC17 -Mode 0
             Write-Host @"
-[!] You ran Locksmith in Mode 0 which only provides an high-level overview of issues
+[!] You ran Locksmith in Mode 0 which only provides a high-level overview of issues
 identified in the environment. For more details including:
 
   - Detailed Risk Rating
@@ -5436,11 +5448,11 @@ Invoke-Locksmith -Mode 1
             $Output = Join-Path -Path $OutputPath -ChildPath "$FilePrefix ADCSIssues.CSV"
             Write-Host "Writing AD CS issues to $Output..."
             try {
-                $AllIssues | Select-Object Forest, Technique, Name, Issue, @{l = 'Risk'; e = { $_.RiskName } } | Export-Csv -NoTypeInformation $Output
+                $AllIssues | Select-Object Forest, Technique, Name, Issue, @{l = 'Risk'; e = { $_.RiskName } } | Export-Csv -NoTypeInformation -Encoding UTF8 $Output
                 Write-Host "$Output created successfully!`n"
             }
             catch {
-                Write-Host 'Ope! Something broke.'
+                Write-Host "ERROR: Failed to write '$Output'. $($_.Exception.Message)"
             }
         }
         3 {
@@ -5451,7 +5463,7 @@ Invoke-Locksmith -Mode 1
                 Write-Host "$Output created successfully!`n"
             }
             catch {
-                Write-Host 'Ope! Something broke.'
+                Write-Host "ERROR: Failed to write '$Output'. $($_.Exception.Message)"
             }
         }
         4 {

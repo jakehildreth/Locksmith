@@ -16,6 +16,8 @@ All types of contributions are encouraged and valued. See the [Table of Contents
 
 - [Contributing to Locksmith](#contributing-to-locksmith)
   - [Code of Conduct](#code-of-conduct)
+  - [Security](#security)
+  - [Support](#support)
   - [I Have a Question](#i-have-a-question)
   - [I Want To Contribute](#i-want-to-contribute)
     - [Reporting Bugs](#reporting-bugs)
@@ -29,6 +31,17 @@ This project and everyone participating in it is governed by the
 By participating, you are expected to uphold this code. Please report unacceptable behavior
 to <coc@dotdot.horse>.
 
+## Security
+
+Never report security-related issues, vulnerabilities, or bugs including
+sensitive information to the issue tracker or elsewhere in public. Follow the
+[Locksmith Security Policy](SECURITY.md) instead.
+
+## Support
+
+For usage questions, troubleshooting, and bug report guidance, see
+[Locksmith Support](SUPPORT.md).
+
 ## I Have a Question
 
 > If you want to ask a question, we assume that you have read the available [Documentation](https://github.com/jakehildreth/Locksmith/blob/main/README.md).
@@ -39,7 +52,7 @@ If you then still feel the need to ask a question and need clarification, we rec
 
 - Open an [Issue](https://github.com/jakehildreth/Locksmith/issues/new/choose).
 - Provide as much context as you can about what you're running into.
-- Provide project and platform versions (Windows Version, Powershell Version, Windows Terminal, etc.), depending on what seems relevant.
+- Provide project and platform versions (Windows Version, PowerShell Version, Windows Terminal, etc.), depending on what seems relevant.
 
 We will then take care of the issue as soon as possible.
 
@@ -65,7 +78,7 @@ A good bug report shouldn't leave others needing to chase you up for more inform
 - Collect information about the bug:
   - OS, platform, and version of client machine. (Locksmith is only supported on Windows 10+/2016+ at this time.)
   - Single or multi-domain forest?
-  - PowerShell version, edition, and shell (Windows Powershell / Windows PowerShell ISE / PowerShell / Windows Terminal)
+  - PowerShell version, edition, and shell (Windows PowerShell / Windows PowerShell ISE / PowerShell / Windows Terminal)
   - Possibly your input and the output
   - Can you reliably reproduce the issue?
 

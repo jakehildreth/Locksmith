@@ -18,7 +18,7 @@ Invoke-Locksmith [[-Mode] <Int32>] [[-Scans] <Array>] [[-OutputPath] <String>] [
 ```
 
 ## DESCRIPTION
-Locksmith uses the Active Directory (AD) Powershell (PS) module to identify 10 misconfigurations
+Locksmith uses the Active Directory (AD) PowerShell (PS) module to identify 10 misconfigurations
 commonly found in Enterprise mode AD CS installations.
 
 ## EXAMPLES
@@ -49,7 +49,7 @@ No attempt is made to fix identified issues.
 
 -Mode 1
 Finds any malconfigurations and displays them in the console.
-Displays example Powershell snippet that can be used to resolve the issue.
+Displays example PowerShell snippet that can be used to resolve the issue.
 No attempt is made to fix identified issues.
 
 -Mode 2

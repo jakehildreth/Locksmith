@@ -1,7 +1,7 @@
 <#
     .SYNOPSIS
     Converts a secure Active Directory Certificate Services (AD CS) environment to
-    an insecure AD CS environment to the purposes of testing.
+    an insecure AD CS environment for the purposes of testing.
 
     .DESCRIPTION
     TSS reconfigures Certificate Authorities and creates

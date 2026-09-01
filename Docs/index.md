@@ -64,7 +64,7 @@ Install-Module -Name Locksmith -Scope CurrentUser
 <a name="RunLocksmith" id="RunLocksmith"></a>
 
 ## Run Locksmith
-There are several modes you can chose from when running `Invoke-Locksmith`. You can also use the **Scans** parameter to choose which scans you want to invoke.
+There are several modes you can choose from when running `Invoke-Locksmith`. You can also use the **Scans** parameter to choose which scans you want to invoke.
 
 <a name="Mode0" id="Mode0"></a>
 

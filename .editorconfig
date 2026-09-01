@@ -10,7 +10,7 @@ indent_size = 4
 trim_trailing_whitespace = true
 insert_final_newline = true
 
-# Powershell files
+# PowerShell files
 [*.{ps1,psd1,psm1}]
 indent_size = 4
 
