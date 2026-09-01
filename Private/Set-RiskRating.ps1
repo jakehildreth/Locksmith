@@ -5,9 +5,8 @@ function Get-SidObjectClass {
 
         .DESCRIPTION
         Wraps Get-ADObject with a script-scoped hashtable cache so that repeated SID-to-objectClass lookups
-        within a single Locksmith scan run hit Active Directory only once per unique SID. Common principals
-        such as Domain Users, Authenticated Users, and Domain Computers appear across many issues and
-        benefit most from this cache.
+        in the current module session hit Active Directory only once per unique SID. This speeds up a scan run
+        and can also benefit repeated scans executed in the same PowerShell session.
 
         .PARAMETER Sid
         The SID string to look up.
@@ -16,9 +15,8 @@ function Get-SidObjectClass {
         PSCustomObject with an objectClass property, or $null if the SID is not found in AD.
 
         .NOTES
-        The cache ($script:SidObjectClassCache) persists for the lifetime of the module session. It is
-        intentionally not cleared between issues so that common principals are resolved only once per
-        scan run.
+        The cache ($script:SidObjectClassCache) persists for the lifetime of the module session. If you need
+        per-scan isolation, clear it at the start of a scan (e.g., $script:SidObjectClassCache = $null).
 
         .EXAMPLE
         $objectClassInfo = Get-SidObjectClass -Sid 'S-1-5-21-...-512'
