@@ -5,6 +5,8 @@
     [string]$PSGalleryAPIPath
 )
 
+$ErrorActionPreference = 'Stop'
+
 if (Get-Module -Name 'PSPublishModule' -ListAvailable | Where-Object { $_.Version -ge [version]'3.0.153' }) {
     Write-Information 'PSPublishModule is installed.'
 } else {
