@@ -5,25 +5,24 @@
     [string]$PSGalleryAPIPath
 )
 
-if (Get-Module -Name 'PSPublishModule' -ListAvailable) {
+if (Get-Module -Name 'PSPublishModule' -ListAvailable | Where-Object { $_.Version -ge [version]'3.0.153' }) {
     Write-Information 'PSPublishModule is installed.'
 } else {
     Write-Information 'PSPublishModule is not installed. Attempting installation.'
     try {
         Install-Module -Name Pester -AllowClobber -Scope CurrentUser -SkipPublisherCheck -Force
         Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
-        Install-Module -Name PSPublishModule -AllowClobber -Scope CurrentUser -Force
+        Install-Module -Name PSPublishModule -MinimumVersion 3.0.153 -AllowClobber -Scope CurrentUser -Force -ErrorAction Stop
     } catch {
-        Write-Error 'PSPublishModule installation failed.'
+        throw "PSPublishModule installation failed. $_"
     }
 }
 
-Update-Module -Name PSPublishModule
-Import-Module -Name PSPublishModule -Force
+Import-Module -Name PSPublishModule -MinimumVersion 3.0.153 -Force -ErrorAction Stop
 
 $CopyrightYear = if ($Calver) { $CalVer.Split('.')[0] } else { (Get-Date -Format yyyy) }
 
-Build-Module -ModuleName 'Locksmith' {
+Build-Module -ModuleName 'Locksmith' -ErrorAction Stop {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
         ModuleVersion        = if ($Calver) { $CalVer } else { (Get-Date -Format yyyy.M.d.Hmm) }
@@ -116,7 +115,7 @@ Build-Module -ModuleName 'Locksmith' {
     New-ConfigurationFormat -ApplyTo 'DefaultPSD1', 'OnMergePSD1' -PSD1Style 'Minimal'
 
     # configuration for documentation, at the same time it enables documentation processing
-    New-ConfigurationDocumentation -Enable:$false -StartClean -UpdateWhenNew -PathReadme 'Docs\Readme.md' -Path 'Docs'
+    New-ConfigurationDocumentation -Enable:$false -PathReadme 'Docs\Readme.md' -Path 'Docs'
 
     New-ConfigurationImportModule -ImportSelf #-ImportRequiredModules
 
