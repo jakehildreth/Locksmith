@@ -7,20 +7,20 @@
 
 $ErrorActionPreference = 'Stop'
 
-if (Get-Module -Name 'PSPublishModule' -ListAvailable | Where-Object { $_.Version -ge [version]'3.0.153' }) {
+if (Get-Module -Name 'PSPublishModule' -ListAvailable | Where-Object { $_.Version -ge [version]'3.0.155' }) {
     Write-Information 'PSPublishModule is installed.'
 } else {
     Write-Information 'PSPublishModule is not installed. Attempting installation.'
     try {
         Install-Module -Name Pester -AllowClobber -Scope CurrentUser -SkipPublisherCheck -Force
         Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
-        Install-Module -Name PSPublishModule -MinimumVersion 3.0.153 -AllowClobber -Scope CurrentUser -Force -ErrorAction Stop
+        Install-Module -Name PSPublishModule -MinimumVersion 3.0.155 -AllowClobber -Scope CurrentUser -Force -ErrorAction Stop
     } catch {
         throw "PSPublishModule installation failed. $_"
     }
 }
 
-Import-Module -Name PSPublishModule -MinimumVersion 3.0.153 -Force -ErrorAction Stop
+Import-Module -Name PSPublishModule -MinimumVersion 3.0.155 -Force -ErrorAction Stop
 
 $CopyrightYear = if ($Calver) { $CalVer.Split('.')[0] } else { (Get-Date -Format yyyy) }
 
