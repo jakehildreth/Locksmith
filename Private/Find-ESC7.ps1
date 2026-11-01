@@ -6,6 +6,8 @@
     .DESCRIPTION
         The script takes an array of AD CS objects as input and filters them based on objects that have the objectClass
         'pKIEnrollmentService'. If the CA objects have non-standard/unsafe principals as administrators or managers, an issue is created.
+        A CA whose CAAdministrator and CertificateManager are null (not Reachable, or the read failed) is skipped, because there is
+        no principal to report. Find-AvailabilityIssue reports it.
 
     .PARAMETER ADCSObjects
         Specifies the array of AD CS objects to be processed. This parameter is mandatory.

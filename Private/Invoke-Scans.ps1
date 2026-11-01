@@ -13,6 +13,9 @@ function Invoke-Scans {
           Find-ESC3C2, Find-ESC4, Find-ESC5, Find-ESC6, Find-ESC8, Find-ESC9, Find-ESC11, Find-ESC13, Find-ESC15, Find-ESC16
         - The script uses Out-GridView or Out-ConsoleGridView for interactive selection when the 'PromptMe' scan option is chosen.
         - The script returns a hash table containing the results of the scans.
+        - When a CA scan runs (All, Auditing, ESC6, ESC7, ESC11, or ESC16), the hash table also has AvailabilityIssues, the
+          AVAILABILITY rows for CAs that could not be fully read, and AllIssues includes them. The rows have a prose Fix,
+          so they must not be passed to Invoke-Remediation or Export-RevertScript.
 
     .EXAMPLE
     Invoke-Scans

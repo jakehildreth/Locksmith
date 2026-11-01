@@ -17,6 +17,16 @@ DETECT    horse-DC1-CA Auditing is not fully enabled. Current value is 0
 
 
 
+########## Certification Authority Not Fully Evaluated ##########
+
+Technique    Name         Issue
+---------    ----         -----
+AVAILABILITY horse-DC2-CA The host responds, but the CA service did not answer (0x800706ba). Not evaluated:
+                          DETECT, ESC6, ESC7, ESC11, ESC16. Stages: DNS ok, ICMP failed, TCP 135 ok, certutil
+                          0x800706ba.
+
+
+
 ########## ESC1 - Misconfigured Certificate Template ##########
 
 Technique Name            Issue

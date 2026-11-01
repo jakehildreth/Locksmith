@@ -5,8 +5,9 @@
 
     .DESCRIPTION
         This script takes an array of AD CS objects and filters them based on specific criteria to identify auditing issues.
-        It checks if the object's objectClass is 'pKIEnrollmentService' and if the AuditFilter is not equal to '127'.
+        It checks if the object's objectClass is 'pKIEnrollmentService' and if the AuditFilter is not null and not equal to '127'.
         For each matching object, it creates a custom object with information about the issue, fix, and revert actions.
+        A CA whose AuditFilter is null (not Reachable, or the read failed) is skipped. Find-AvailabilityIssue reports it.
 
     .PARAMETER ADCSObjects
         Specifies an array of ADCS objects to be checked for auditing issues.

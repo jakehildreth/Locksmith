@@ -7,7 +7,8 @@
         The script takes an array of ADCS objects as input and filters them based on objects that have the objectClass
         'pKIEnrollmentService' and the SANFlag set to 'Yes'. For each matching object, it creates a custom object with
         properties representing various information about the object, such as Forest, Name, DistinguishedName, Technique,
-        Issue, Fix, and Revert.
+        Issue, Fix, and Revert. A CA whose SANFlag is null (not Reachable, or the read failed) is skipped.
+        Find-AvailabilityIssue reports it.
 
     .PARAMETER ADCSObjects
         Specifies the array of ADCS objects to be processed. This parameter is mandatory.

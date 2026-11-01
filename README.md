@@ -34,6 +34,7 @@ A small tool built to find and fix common misconfigurations in Active Directory 
    4. [Mode 3](#mode-3-identify-issues-and-fixes-output-to-csv)
    5. [Mode 4](#mode-4-fix-all-issues)
    6. [Scans](#scans)
+   7. [Certification Authorities Locksmith cannot read](#certification-authorities-locksmith-cannot-read)
 3. [Security and Support](#security-and-support)
 
 <a name="installation" id="installation"></a>
@@ -190,6 +191,21 @@ Invoke-Locksmith.ps1 -Scans ESC1
 # Scan for ESC1, ESC2, and ESC8 vulnerable paths
 Invoke-Locksmith.ps1 -Scans ESC1,ESC2,ESC8
 ```
+
+<a name="certification-authorities-locksmith-cannot-read" id="certification-authorities-locksmith-cannot-read"></a>
+### Certification Authorities Locksmith cannot read
+
+Before Locksmith reads a Certification Authority (CA), it checks that it can reach the CA. If Locksmith cannot read a CA, or can read only part of its configuration, it reports one row for that CA with the technique `AVAILABILITY`. The row has three parts:
+
+1. The cause, in plain words. For example, the CA service is not answering, the name does not resolve in DNS, or access was denied.
+2. The techniques that were not evaluated: `DETECT`, `ESC6`, `ESC7`, `ESC11`, and `ESC16`.
+3. The result of each check Locksmith ran: DNS, ICMP, TCP 135 (or WinRM when you use `-Credential`), and `certutil -pingadmin`.
+
+A CA is readable if and only if `certutil -pingadmin` succeeds. A host that blocks ICMP is not reported. The `Fix` column holds a one-line hint, not a script, and Mode 4 never runs it. The row is rated Medium, because a CA that Locksmith could not read is a blind spot.
+
+Example Output for Mode 0 and Mode 1: <https://github.com/jakehildreth/Locksmith/blob/main/Docs/Examples/Mode0.md>, <https://github.com/jakehildreth/Locksmith/blob/main/Docs/Examples/Mode1.md>
+
+Flowchart: <https://github.com/jakehildreth/Locksmith/blob/main/Docs/Flowcharts/Availability.md>
 
 ## Security and Support
 

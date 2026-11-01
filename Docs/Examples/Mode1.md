@@ -21,6 +21,17 @@ Fix               : certutil -config 'DC1.horse.local\horse-DC1-CA' -setreg 'CA\
                     -Force }
 
 
+########## Certification Authority Not Fully Evaluated ##########
+
+Technique         : AVAILABILITY
+Name              : horse-DC2-CA
+DistinguishedName : CN=horse-DC2-CA,CN=Enrollment Services,CN=Public Key
+                    Services,CN=Services,CN=Configuration,DC=horse,DC=local
+Issue             : The host responds, but the CA service did not answer (0x800706ba). Not evaluated: DETECT, ESC6,
+                    ESC7, ESC11, ESC16. Stages: DNS ok, ICMP failed, TCP 135 ok, certutil 0x800706ba.
+Fix               : Check that the 'certsvc' service is running on DC2.horse.local.
+
+
 ########## ESC1 - Misconfigured Certificate Template ##########
 
 Technique         : ESC1

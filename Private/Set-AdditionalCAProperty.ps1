@@ -9,6 +9,17 @@
         The script filters the AD CS Objects based on the objectClass property and performs the necessary operations
         to set the additional properties.
 
+        For each CA, it runs the Availability check (Test-CAAvailability) and adds these properties:
+          - Reachable: true if and only if certutil -pingadmin succeeded.
+          - CAStageResult: the result of each Stage (DNS, ICMP, Transport, Certutil).
+          - CAUnavailabilityReason: why the CA is not Reachable, or null when it is.
+          - CAReadFailure: a hashtable of value-property name to reason for each certutil -getreg read that failed.
+
+        It then reads AuditFilter, SANFlag, InterfaceFlag, CAAdministrator, CertificateManager, and DisableExtensionList.
+        A value is null when the CA is not Reachable or its read failed. It is never set to a message string.
+        An absent registry value (0x80070002) is not a failed read, except for CA\Security, which always exists.
+        Every CA starts with no values, so a CA never inherits the previous CA's data.
+
     .PARAMETER ADCSObjects
         Specifies the array of AD CS Objects to be processed. This parameter is mandatory and supports pipeline input.
 

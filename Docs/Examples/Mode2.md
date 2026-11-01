@@ -1,6 +1,7 @@
 ```
 "Forest","Name","Issue"
 "horse.local","horse-DC1-CA","Auditing is not fully enabled. Current value is 0"
+"horse.local","horse-DC2-CA","The host responds, but the CA service did not answer (0x800706ba). Not evaluated: DETECT, ESC6, ESC7, ESC11, ESC16. Stages: DNS ok, ICMP failed, TCP 135 ok, certutil 0x800706ba."
 "horse.local","ESC1-Vulnerable","HORSE\kari can enroll in this Client Authentication template using a SAN without Manager Approval"
 "horse.local","ESC2-Vulnerable","NT AUTHORITY\Authenticated Users can request a SubCA certificate without Manager Approval"
 "horse.local","User","NT AUTHORITY\Authenticated Users has GenericAll rights on this template"
