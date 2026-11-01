@@ -39,6 +39,7 @@
 
     $ADCSObjects | Where-Object {
         ($_.objectClass -eq 'pKIEnrollmentService') -and
+        ($null -ne $_.AuditFilter) -and
         ($_.AuditFilter -ne '127')
     } | ForEach-Object {
         $Issue = [pscustomobject]@{
@@ -59,11 +60,6 @@ Invoke-Command -ComputerName '$($_.dNSHostName)' -ScriptBlock {
     Get-Service -Name 'certsvc' | Restart-Service -Force
 }
 "@
-        }
-        if ($_.AuditFilter -match 'CA Unavailable') {
-            $Issue.Issue = $_.AuditFilter
-            $Issue.Fix = 'N/A'
-            $Issue.Revert = 'N/A'
         }
         if ($SkipRisk -eq $false) {
             Set-RiskRating -ADCSObjects $ADCSObjects -Issue $Issue -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers

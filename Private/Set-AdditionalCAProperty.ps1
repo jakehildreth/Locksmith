@@ -129,111 +129,126 @@
                 $CAHostDistinguishedName = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Server $ForestGC ).DistinguishedName
                 $CAHostFQDN = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Properties DnsHostname -Server $ForestGC).DnsHostname
             }
-            $ping = if ($CAHostFQDN) { (Test-CATransport -ComputerName $CAHostFQDN -Port 135 -TimeoutMilliseconds 3000).Passed } else { Write-Warning "Unable to resolve $($_.Name) Fully Qualified Domain Name (FQDN)" }
-            if ($ping) {
-                try {
-                    if ($Credential) {
-                        $CertutilAudit = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { certutil -config $using:CAFullName -getreg CA\AuditFilter }
-                    } else {
-                        $CertutilAudit = certutil -config $CAFullName -getreg CA\AuditFilter
-                    }
-                } catch {
-                    $AuditFilter = 'Failure'
-                }
-                try {
-                    if ($Credential) {
-                        $CertutilFlag = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { certutil -config $using:CAFullName -getreg policy\EditFlags }
-                    } else {
-                        $CertutilFlag = certutil -config $CAFullName -getreg policy\EditFlags
-                    }
-                } catch {
-                    $SANFlag = 'Failure'
-                }
-                try {
-                    if ($Credential) {
-                        $CertutilInterfaceFlag = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { certutil -config $using:CAFullName -getreg CA\InterfaceFlags }
-                    } else {
-                        $CertutilInterfaceFlag = certutil -config $CAFullName -getreg CA\InterfaceFlags
-                    }
-                } catch {
-                    $InterfaceFlag = 'Failure'
-                }
-                try {
-                    if ($Credential) {
-                        $CertutilSecurity = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { certutil -config $using:CAFullName -getreg CA\Security }
-                    } else {
-                        $CertutilSecurity = certutil -config $CAFullName -getreg CA\Security
-                    }
-                } catch {
-                    $CAAdministrator = 'Failure'
-                    $CertificateManager = 'Failure'
-                }
-                try {
-                    if ($Credential) {
-                        $CertutilDisableExtensionList = Invoke-Command -ComputerName $CAHostFQDN -Credential $Credential -ScriptBlock { certutil -config $using:CAFullName -getreg policy\DisableExtensionList }
-                    } else {
-                        $CertutilDisableExtensionList = certutil -config $CAFullName -getreg policy\DisableExtensionList
-                    }
-                } catch {
-                    $CertutilDisableExtensionList = 'Failure'
-                }
-            } else {
-                $AuditFilter = 'CA Unavailable'
-                $SANFlag = 'CA Unavailable'
-                $InterfaceFlag = 'CA Unavailable'
-                $CAAdministrator = 'CA Unavailable'
-                $CertificateManager = 'CA Unavailable'
-                $DisableExtensionList = 'CA Unavailable'
+            $ComputerName = $CAHostFQDN
+            if (-not $ComputerName) {
+                Write-Warning "Unable to resolve $($_.Name) Fully Qualified Domain Name (FQDN)"
+                $ComputerName = $_.dNSHostName
             }
-            if ($CertutilAudit) {
-                try {
-                    [string]$AuditFilter = $CertutilAudit | Select-String 'AuditFilter REG_DWORD = ' | Select-String '\('
-                    $AuditFilter = $AuditFilter.split('(')[1].split(')')[0]
-                } catch {
+            $AvailabilityParameters = @{
+                CAFullName   = $CAFullName
+                ComputerName = $ComputerName
+            }
+            if ($Credential) {
+                $AvailabilityParameters.Credential = $Credential
+            }
+            $Availability = Test-CAAvailability @AvailabilityParameters
+
+            # Every CA starts with no values, so an unavailable CA can never inherit the previous CA's data.
+            $AuditFilter = $null
+            $SANFlag = $null
+            $InterfaceFlag = $null
+            $CAAdministrator = $null
+            $CertificateManager = $null
+            $DisableExtensionList = $null
+            $CAReadFailure = @{}
+            $AuditRead = $null
+            $FlagRead = $null
+            $InterfaceRead = $null
+            $SecurityRead = $null
+            $DisableExtensionListRead = $null
+
+            if ($Availability.Reachable) {
+                $ReadParameters = @{
+                    CAFullName   = $CAFullName
+                    ComputerName = $ComputerName
+                }
+                if ($Credential) {
+                    $ReadParameters.Credential = $Credential
+                }
+                $AuditRead = Invoke-CertutilGetReg @ReadParameters -Path 'CA\AuditFilter'
+                $FlagRead = Invoke-CertutilGetReg @ReadParameters -Path 'policy\EditFlags'
+                $InterfaceRead = Invoke-CertutilGetReg @ReadParameters -Path 'CA\InterfaceFlags'
+                $SecurityRead = Invoke-CertutilGetReg @ReadParameters -Path 'CA\Security'
+                $DisableExtensionListRead = Invoke-CertutilGetReg @ReadParameters -Path 'policy\DisableExtensionList'
+            }
+
+            # A read passes, or fails because the value was never set (0x80070002), or truly fails.
+            # CA\Security always exists, so 0x80070002 there is a failed read.
+            $ValueNotSet = [int]0x80070002
+            $DescribeReadFailure = {
+                param($Read)
+                if ($Read.RemoteError) {
+                    "Remote command failed: $($Read.Detail)"
+                } elseif ($null -ne $Read.HResult) {
+                    (Get-CAHResultReason -HResult ([int]$Read.HResult)).Text
+                } else {
+                    "Read failed: $($Read.Detail)"
+                }
+            }
+            if ($AuditRead) {
+                if ($AuditRead.Passed -or $AuditRead.HResult -eq $ValueNotSet) {
+                    $CertutilAudit = if ($AuditRead.Passed) { $AuditRead.Output } else { @() }
                     try {
-                        [string]$AuditFilter = $CertutilAudit | Select-String 'AuditFilter REG_DWORD = '
-                        $AuditFilter = $AuditFilter.split('=')[1].trim()
+                        $AuditFilter = [string]($CertutilAudit | Select-String 'AuditFilter REG_DWORD = ' | Select-String '\(')
+                        $AuditFilter = $AuditFilter.split('(')[1].split(')')[0]
                     } catch {
-                        $AuditFilter = 'Never Configured'
+                        try {
+                            $AuditFilter = [string]($CertutilAudit | Select-String 'AuditFilter REG_DWORD = ')
+                            $AuditFilter = $AuditFilter.split('=')[1].trim()
+                        } catch {
+                            $AuditFilter = 'Never Configured'
+                        }
                     }
-                }
-            }
-            if ($CertutilFlag) {
-                [string]$SANFlag = $CertutilFlag | Select-String ' EDITF_ATTRIBUTESUBJECTALTNAME2 -- 40000 \('
-                if ($SANFlag) {
-                    $SANFlag = 'Yes'
                 } else {
-                    $SANFlag = 'No'
+                    $CAReadFailure['AuditFilter'] = & $DescribeReadFailure $AuditRead
                 }
             }
-            if ($CertutilInterfaceFlag) {
-                [string]$InterfaceFlag = $CertutilInterfaceFlag | Select-String ' IF_ENFORCEENCRYPTICERTREQUEST -- 200 \('
-                if ($InterfaceFlag) {
-                    $InterfaceFlag = 'Yes'
+            if ($FlagRead) {
+                if ($FlagRead.Passed -or $FlagRead.HResult -eq $ValueNotSet) {
+                    $CertutilFlag = if ($FlagRead.Passed) { $FlagRead.Output } else { @() }
+                    $SANFlag = if ([string]($CertutilFlag | Select-String ' EDITF_ATTRIBUTESUBJECTALTNAME2 -- 40000 \(')) { 'Yes' } else { 'No' }
                 } else {
-                    $InterfaceFlag = 'No'
+                    $CAReadFailure['SANFlag'] = & $DescribeReadFailure $FlagRead
                 }
             }
-            if ($CertutilSecurity) {
-                [string[]]$CAAdministrator = $CertutilSecurity | ForEach-Object {
-                    if ($_ -match '^.*Allow.*CA Administrator.*.*\t(.*)$') {
-                        $matches[1].ToString()
-                    }
-                }
-                [string[]]$CertificateManager = $CertutilSecurity | ForEach-Object {
-                    if ($_ -match '^.*Allow.*Certificate Manager.*\t(.*)$') {
-                        $matches[1].ToString()
-                    }
-                }
-            }
-            if ($CertutilDisableExtensionList) {
-                [string]$DisableExtensionList = $CertutilDisableExtensionList | Select-String '1\.3\.6\.1\.4\.1\.311\.25\.2'
-                if ($DisableExtensionList) {
-                    $DisableExtensionList = 'Yes'
+            if ($InterfaceRead) {
+                if ($InterfaceRead.Passed -or $InterfaceRead.HResult -eq $ValueNotSet) {
+                    $CertutilInterfaceFlag = if ($InterfaceRead.Passed) { $InterfaceRead.Output } else { @() }
+                    $InterfaceFlag = if ([string]($CertutilInterfaceFlag | Select-String ' IF_ENFORCEENCRYPTICERTREQUEST -- 200 \(')) { 'Yes' } else { 'No' }
                 } else {
-                    $DisableExtensionList = 'No'
+                    $CAReadFailure['InterfaceFlag'] = & $DescribeReadFailure $InterfaceRead
                 }
             }
+            if ($SecurityRead) {
+                if ($SecurityRead.Passed) {
+                    $CertutilSecurity = $SecurityRead.Output
+                    $CAAdministrator = [string[]]@($CertutilSecurity | ForEach-Object {
+                            if ($_ -match '^.*Allow.*CA Administrator.*.*\t(.*)$') {
+                                $matches[1].ToString()
+                            }
+                        })
+                    $CertificateManager = [string[]]@($CertutilSecurity | ForEach-Object {
+                            if ($_ -match '^.*Allow.*Certificate Manager.*\t(.*)$') {
+                                $matches[1].ToString()
+                            }
+                        })
+                } else {
+                    $CAReadFailure['CAAdministrator'] = & $DescribeReadFailure $SecurityRead
+                    $CAReadFailure['CertificateManager'] = $CAReadFailure['CAAdministrator']
+                }
+            }
+            if ($DisableExtensionListRead) {
+                if ($DisableExtensionListRead.Passed -or $DisableExtensionListRead.HResult -eq $ValueNotSet) {
+                    $CertutilDisableExtensionList = if ($DisableExtensionListRead.Passed) { $DisableExtensionListRead.Output } else { @() }
+                    $DisableExtensionList = if ([string]($CertutilDisableExtensionList | Select-String '1\.3\.6\.1\.4\.1\.311\.25\.2')) { 'Yes' } else { 'No' }
+                } else {
+                    $CAReadFailure['DisableExtensionList'] = & $DescribeReadFailure $DisableExtensionListRead
+                }
+            }
+            Add-Member -InputObject $_ -MemberType NoteProperty -Name Reachable -Value ([bool]$Availability.Reachable) -Force
+            Add-Member -InputObject $_ -MemberType NoteProperty -Name CAStageResult -Value $Availability.CAStageResult -Force
+            Add-Member -InputObject $_ -MemberType NoteProperty -Name CAUnavailabilityReason -Value $Availability.CAUnavailabilityReason -Force
+            Add-Member -InputObject $_ -MemberType NoteProperty -Name CAReadFailure -Value $CAReadFailure -Force
             Add-Member -InputObject $_ -MemberType NoteProperty -Name AuditFilter -Value $AuditFilter -Force
             Add-Member -InputObject $_ -MemberType NoteProperty -Name CAEnrollmentEndpoint -Value $CAEnrollmentEndpoint -Force
             Add-Member -InputObject $_ -MemberType NoteProperty -Name CAFullName -Value $CAFullName -Force

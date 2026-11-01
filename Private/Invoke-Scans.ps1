@@ -180,7 +180,13 @@ function Invoke-Scans {
         }
     }
 
-    [array]$AllIssues = $AuditingIssues + $ESC1 + $ESC2 + $ESC3 + $ESC4 + $ESC5 + $ESC6 + $ESC7 + $ESC8 + $ESC9 + $ESC11 + $ESC13 + $ESC15 + $ESC16 + $ESC17
+    # A CA that Locksmith could not fully read gets one AVAILABILITY row, whichever CA scans ran.
+    if ($Scans | Where-Object { $_ -in @('All', 'Auditing', 'ESC6', 'ESC7', 'ESC11', 'ESC16') }) {
+        Write-Host 'Identifying Certification Authorities that could not be fully read...'
+        [array]$AvailabilityIssues = Find-AvailabilityIssue -ADCSObjects $ADCSObjects -SafeUsers $SafeUsers -UnsafeUsers $UnsafeUsers
+    }
+
+    [array]$AllIssues = $AuditingIssues + $AvailabilityIssues + $ESC1 + $ESC2 + $ESC3 + $ESC4 + $ESC5 + $ESC6 + $ESC7 + $ESC8 + $ESC9 + $ESC11 + $ESC13 + $ESC15 + $ESC16 + $ESC17
 
     # If these are all empty = no issues found, exit
     if ($AllIssues.Count -lt 1) {
@@ -192,6 +198,7 @@ function Invoke-Scans {
     return @{
         AllIssues      = $AllIssues
         AuditingIssues = $AuditingIssues
+        AvailabilityIssues = $AvailabilityIssues
         ESC1           = $ESC1
         ESC2           = $ESC2
         ESC3           = $ESC3

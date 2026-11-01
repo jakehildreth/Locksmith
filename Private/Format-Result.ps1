@@ -31,6 +31,7 @@ function Format-Result {
     )
 
     $IssueTable = @{
+        AVAILABILITY  = 'Certification Authority Not Fully Evaluated'
         DETECT        = 'Auditing Not Fully Enabled'
         ESC1          = 'ESC1 - Vulnerable Certificate Template - Client Authentication'
         ESC2          = 'ESC2 - Vulnerable Certificate Template - Subordinate CA/Any Purpose'
@@ -69,7 +70,7 @@ function Format-Result {
         if ($Mode -eq 0) {
             # TODO Refactor this
             switch ($UniqueIssue) {
-                { $_ -in @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC16') } {
+                { $_ -in @('AVAILABILITY', 'DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC16') } {
                     $Issue |
                     Format-Table Technique, @{l = 'CA Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, Issue -Wrap |
                     Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive
@@ -87,7 +88,7 @@ function Format-Result {
             }
         } elseif ($Mode -eq 1) {
             switch ($UniqueIssue) {
-                { $_ -in @('DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC16') } {
+                { $_ -in @('AVAILABILITY', 'DETECT', 'ESC6', 'ESC7', 'ESC8', 'ESC11', 'ESC16') } {
                     $Issue |
                     Format-List Technique, @{l = 'CA Name'; e = { $_.Name } }, @{l = 'Risk'; e = { $_.RiskName } }, DistinguishedName, Issue, Fix, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } |
                     Write-HostColorized -PatternColorMap $RiskTable -CaseSensitive

@@ -26,7 +26,7 @@
     process {
         $ADCSObjects | Where-Object {
             ($_.objectClass -eq 'pKIEnrollmentService') -and
-            ($_.DisableExtensionList -ne 'No')
+            ($_.DisableExtensionList -eq 'Yes')
         } | ForEach-Object {
             $Issue = [pscustomobject]@{
                 Forest            = $_.CanonicalName.split('/')[0]

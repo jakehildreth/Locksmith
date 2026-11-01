@@ -31,7 +31,7 @@
     process {
         $ADCSObjects | Where-Object {
             ($_.objectClass -eq 'pKIEnrollmentService') -and
-            ($_.InterfaceFlag -ne 'Yes')
+            ($_.InterfaceFlag -eq 'No')
         } | ForEach-Object {
             [string]$CAFullName = "$($_.dNSHostName)\$($_.Name)"
             $Issue = [pscustomobject]@{

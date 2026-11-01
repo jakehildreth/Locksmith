@@ -283,6 +283,7 @@ function Invoke-Locksmith {
     # Re-hydrate the findings arrays from the Results hash table
     $AllIssues = $Results['AllIssues']
     $AuditingIssues = $Results['AuditingIssues']
+    $AvailabilityIssues = $Results['AvailabilityIssues']
     $ESC1 = $Results['ESC1']
     $ESC2 = $Results['ESC2']
     $ESC3 = $Results['ESC3']
@@ -309,6 +310,7 @@ function Invoke-Locksmith {
     switch ($Mode) {
         0 {
             Format-Result -Issue $AuditingIssues -Mode 0
+            Format-Result -Issue $AvailabilityIssues -Mode 0
             Format-Result -Issue $ESC1 -Mode 0
             Format-Result -Issue $ESC2 -Mode 0
             Format-Result -Issue $ESC3 -Mode 0
@@ -344,6 +346,7 @@ Invoke-Locksmith -Mode 1
         }
         1 {
             Format-Result -Issue $AuditingIssues -Mode 1
+            Format-Result -Issue $AvailabilityIssues -Mode 1
             Format-Result -Issue $ESC1 -Mode 1
             Format-Result -Issue $ESC2 -Mode 1
             Format-Result -Issue $ESC3 -Mode 1
