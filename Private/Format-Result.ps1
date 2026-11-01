@@ -57,7 +57,8 @@ function Format-Result {
         'Critical'      = 'White, DarkRed'
     }
 
-    if ($null -ne $Issue) {
+    # An empty array is not $null (Invoke-Scans returns one for ESC3), so test for rows, not for $null.
+    if (@($Issue | Where-Object { $null -ne $_ }).Count -gt 0) {
         $UniqueIssue = $Issue.Technique | Sort-Object -Unique
         $Title = $($IssueTable[$UniqueIssue])
         Write-Host "$('-'*($($Title.ToString().Length + 10)))" -ForeGroundColor Black -BackgroundColor Magenta -NoNewline; Write-Host
