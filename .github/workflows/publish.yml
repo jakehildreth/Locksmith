@@ -1,0 +1,86 @@
+name: Build and Publish to PSGallery and GitHub
+
+on:
+  push:
+    paths:
+      - 'Public/**'
+      - 'Private/**'
+      - 'Build/**'
+      - 'Locksmith.psm1'
+      - 'Locksmith.psd1'
+      - 'LICENSE'
+      - '.github/workflows/publish.yml'
+
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install required PowerShell modules
+      shell: pwsh
+      run: |
+        Write-Host "Installing required modules..." -ForegroundColor Cyan
+        Install-Module -Name Pester -AllowClobber -Scope CurrentUser -SkipPublisherCheck -Force
+        Install-Module -Name PSScriptAnalyzer -AllowClobber -Scope CurrentUser -Force
+        Install-Module -Name PSPublishModule -AllowClobber -MaximumVersion 2.0.27 -Scope CurrentUser -Force
+        Write-Host "Modules installed successfully" -ForegroundColor Green
+
+    # Locksmith requires the ActiveDirectory module at build time (analysis and self-import).
+    - name: Install RSAT AD PowerShell
+      shell: pwsh
+      run: Install-WindowsFeature -Name RSAT-AD-PowerShell
+
+    - name: Build and Publish Release to PowerShell Gallery
+      if: github.ref == 'refs/heads/main'
+      shell: pwsh
+      env:
+        PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+      run: |
+        Write-Host "Building and publishing Locksmith release..." -ForegroundColor Cyan
+        ./Build/Build-Module.ps1 -PublishToPSGallery -PSGalleryAPIKey $env:PSGALLERY_API_KEY
+        Write-Host "Published release successfully" -ForegroundColor Green
+
+    - name: Build and Publish Prerelease to PowerShell Gallery
+      if: github.ref != 'refs/heads/main'
+      shell: pwsh
+      env:
+        PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+      run: |
+        Write-Host "Building and publishing Locksmith prerelease..." -ForegroundColor Cyan
+        ./Build/Build-Module.ps1 -PublishToPSGallery -PSGalleryAPIKey $env:PSGALLERY_API_KEY -Prerelease 'pre'
+        Write-Host "Published prerelease successfully" -ForegroundColor Green
+
+    - name: Get module version
+      id: version
+      shell: pwsh
+      run: |
+        $manifest = Import-PowerShellDataFile ./Locksmith.psd1
+        $version = $manifest.ModuleVersion
+        $prerelease = $manifest.PrivateData.PSData.Prerelease
+        $fullVersion = if ($prerelease) { "$version-$prerelease" } else { $version }
+        echo "version=$fullVersion" >> $env:GITHUB_OUTPUT
+        Write-Host "Module version: $fullVersion" -ForegroundColor Green
+
+    - name: Create GitHub Release
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        $releaseArguments = @(
+            'release', 'create', '${{ steps.version.outputs.version }}'
+            './Artefacts/Script/Invoke-Locksmith.ps1'
+            './Artefacts/ScriptPacked/Invoke-Locksmith.zip'
+            '--title', 'Locksmith ${{ steps.version.outputs.version }}'
+            '--target', '${{ github.sha }}'
+            '--generate-notes'
+        )
+        if ('${{ github.ref }}' -ne 'refs/heads/main') { $releaseArguments += '--prerelease' }
+        gh @releaseArguments
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
