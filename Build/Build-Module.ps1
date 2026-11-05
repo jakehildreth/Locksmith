@@ -1,9 +1,31 @@
 ﻿param (
-    # A CalVer string if you need to manually override the default yyyy.M.d version string.
+    # A CalVer string if you need to manually override the default yyyy.M.dHHmm version string.
     [string]$CalVer,
+    # A prerelease tag to append to the module version (e.g., 'alpha', 'beta', 'rc1').
+    [string]$Prerelease,
     [switch]$PublishToPSGallery,
-    [string]$PSGalleryAPIPath
+    [string]$PSGalleryAPIPath,
+    [string]$PSGalleryAPIKey
 )
+
+# The VS Code PowerShell Extension pre-loads PSScriptAnalyzer into the host
+# process. PSPublishModule imports PSScriptAnalyzer internally, and loading a
+# second copy of its assembly into the same appdomain throws an assembly-already-
+# loaded error. Re-invoke in a clean pwsh -NoProfile child process to avoid it.
+if ($Host.Name -eq 'Visual Studio Code Host' -or
+    $null -ne [System.AppDomain]::CurrentDomain.GetAssemblies().Where({
+            $_.GetName().Name -eq 'Microsoft.Windows.PowerShell.ScriptAnalyzer'
+        }, 'First')[0]) {
+    Write-Host 'Re-invoking in a clean pwsh process to avoid PSScriptAnalyzer assembly conflict...'
+    $passThrough = @('-NoProfile', '-File', $PSCommandPath)
+    if ($CalVer) { $passThrough += '-CalVer'; $passThrough += $CalVer }
+    if ($Prerelease) { $passThrough += '-Prerelease'; $passThrough += $Prerelease }
+    if ($PublishToPSGallery) { $passThrough += '-PublishToPSGallery' }
+    if ($PSGalleryAPIPath) { $passThrough += '-PSGalleryAPIPath'; $passThrough += $PSGalleryAPIPath }
+    if ($PSGalleryAPIKey) { $passThrough += '-PSGalleryAPIKey'; $passThrough += $PSGalleryAPIKey }
+    & pwsh @passThrough
+    exit $LASTEXITCODE
+}
 
 if (Get-Module -Name 'PSPublishModule' -ListAvailable) {
     Write-Information 'PSPublishModule is installed.'
@@ -12,13 +34,12 @@ if (Get-Module -Name 'PSPublishModule' -ListAvailable) {
     try {
         Install-Module -Name Pester -AllowClobber -Scope CurrentUser -SkipPublisherCheck -Force
         Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
-        Install-Module -Name PSPublishModule -AllowClobber -Scope CurrentUser -Force
+        Install-Module -Name PSPublishModule -AllowClobber -MaximumVersion 2.0.27 -Scope CurrentUser -Force
     } catch {
-        Write-Error 'PSPublishModule installation failed.'
+        Write-Error "PSPublishModule installation failed. $_"
     }
 }
 
-Update-Module -Name PSPublishModule
 Import-Module -Name PSPublishModule -Force
 
 $CopyrightYear = if ($Calver) { $CalVer.Split('.')[0] } else { (Get-Date -Format yyyy) }
@@ -26,7 +47,7 @@ $CopyrightYear = if ($Calver) { $CalVer.Split('.')[0] } else { (Get-Date -Format
 Build-Module -ModuleName 'Locksmith' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = if ($Calver) { $CalVer } else { (Get-Date -Format yyyy.M.d.Hmm) }
+        ModuleVersion        = if ($Calver) { $CalVer } else { (Get-Date -Format yyyy.M.dHHmm) }
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = 'b1325b42-8dc4-4f17-aa1f-dcb5984ca14a'
         Author               = 'Jake Hildreth'
@@ -36,6 +57,9 @@ Build-Module -ModuleName 'Locksmith' {
         IconUri              = 'https://raw.githubusercontent.com/jakehildreth/Locksmith/main/Images/locksmith.ico'
         PowerShellVersion    = '5.1'
         Tags                 = @('Locksmith', 'ActiveDirectory', 'ADCS', 'CA', 'Certificate', 'CertificateAuthority', 'CertificateServices', 'PKI', 'X509', 'Windows')
+    }
+    if ($Prerelease) {
+        $Manifest['Prerelease'] = $Prerelease
     }
     New-ConfigurationManifest @Manifest
 
@@ -146,8 +170,16 @@ Build-Module -ModuleName 'Locksmith' {
     # New-ConfigurationArtefact -Type Packed -Enable -Path "$PSScriptRoot\..\Artefacts\Packed" -ArtefactName '<ModuleName>.zip'
     New-ConfigurationArtefact -Type Script -Enable -Path "$PSScriptRoot\..\Artefacts\Script" -PreScriptMerge $PreScriptMerge -PostScriptMerge $PostScriptMerge -ScriptName 'Invoke-<ModuleName>.ps1'
     New-ConfigurationArtefact -Type ScriptPacked -Enable -Path "$PSScriptRoot\..\Artefacts\ScriptPacked" -PreScriptMerge $PreScriptMerge -PostScriptMerge $PostScriptMerge -ScriptName 'Invoke-<ModuleName>.ps1' -ArtefactName 'Invoke-<ModuleName>.zip'
-    if ($PublishToPSGallery) {   
-        New-ConfigurationPublish -Type PowerShellGallery -FilePath $PSGalleryAPIPath -Enabled:$true
+    if ($PublishToPSGallery) {
+        if ($PSGalleryAPIKey) {
+            # API key passed directly (CI)
+            New-ConfigurationPublish -Type PowerShellGallery -ApiKey $PSGalleryAPIKey -Enabled:$true
+        } elseif ($PSGalleryAPIPath) {
+            # API key read from a file (local development)
+            New-ConfigurationPublish -Type PowerShellGallery -FilePath $PSGalleryAPIPath -Enabled:$true
+        } else {
+            Write-Error 'PublishToPSGallery specified but neither PSGalleryAPIKey nor PSGalleryAPIPath provided.'
+        }
     }
 }
 
