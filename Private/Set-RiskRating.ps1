@@ -1,3 +1,56 @@
+function Get-SidObjectClass {
+    <#
+        .SYNOPSIS
+        Returns the AD objectClass for a given SID, using a session-scoped cache to avoid repeated LDAP queries.
+
+        .DESCRIPTION
+        Wraps Get-ADObject with a script-scoped hashtable cache so that repeated SID-to-objectClass lookups
+        in the current module session hit Active Directory only once per unique SID. This speeds up a scan run
+        and can also benefit repeated scans executed in the same PowerShell session.
+
+        .PARAMETER Sid
+        The SID string to look up.
+
+        .OUTPUTS
+        PSCustomObject with an objectClass property, or $null if the SID is not found in AD.
+
+        .NOTES
+        The cache ($script:SidObjectClassCache) persists for the lifetime of the module session. If you need
+        per-scan isolation, clear it at the start of a scan (e.g., $script:SidObjectClassCache = $null).
+
+        .EXAMPLE
+        $objectClassInfo = Get-SidObjectClass -Sid 'S-1-5-21-...-512'
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param (
+        [Parameter(Mandatory)]
+        [string]$Sid
+    )
+
+    if ($null -eq $script:SidObjectClassCache) {
+        $script:SidObjectClassCache = @{}
+    }
+
+    if (-not $script:SidObjectClassCache.ContainsKey($Sid)) {
+        try {
+            # Use -ErrorAction Stop so transient ADWS/AD errors throw rather than producing
+            # $null output. Only cache a result (including $null for a genuine "not found")
+            # on success; leave the key absent on error so the next call can retry.
+            $result = Get-ADObject -Filter { objectSid -eq $Sid } -ErrorAction Stop |
+                Select-Object objectClass
+            $script:SidObjectClassCache[$Sid] = $result
+        } catch {
+            # Re-emit to the error stream so callers can detect/handle failures and so
+            # $ErrorActionPreference is honoured. The key is intentionally left absent
+            # so a subsequent call can retry the AD query.
+            Write-Error -ErrorRecord $_
+        }
+    }
+
+    return $script:SidObjectClassCache[$Sid]
+}
+
 function Set-RiskRating {
     <#
         .SYNOPSIS
@@ -67,7 +120,7 @@ function Set-RiskRating {
         if ($Issue.Technique -eq 'ESC7') {
             # If an Issue can be tied to a principal, the principal's objectClass impacts the Issue's risk
             $SID = $Issue.IdentityReferenceSID.ToString()
-            $IdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $SID } | Select-Object objectClass
+            $IdentityReferenceObjectClass = Get-SidObjectClass -Sid $SID
 
             if ($Issue.IdentityReferenceSID -match $UnsafeUsers) {
                 # Authenticated Users, Domain Users, Domain Computers etc. are very risky
@@ -126,7 +179,7 @@ function Set-RiskRating {
 
         # If an Issue can be tied to a principal, the principal's objectClass impacts the Issue's risk
         $SID = $Issue.IdentityReferenceSID.ToString()
-        $IdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $SID } | Select-Object objectClass
+        $IdentityReferenceObjectClass = Get-SidObjectClass -Sid $SID
 
 
         if ($Issue.IdentityReferenceSID -match $UnsafeUsers) {
@@ -180,7 +233,7 @@ function Set-RiskRating {
                             }
                         }
                         $escSID = $esc.IdentityReferenceSID.ToString()
-                        $escIdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $escSID } | Select-Object objectClass
+                        $escIdentityReferenceObjectClass = Get-SidObjectClass -Sid $escSID
                         if ($escSID -match $SafeUsers) {
                             # Safe Users are admins. Authenticating as an admin is bad.
                             $Principals += $esc.IdentityReference.Value
@@ -227,7 +280,7 @@ function Set-RiskRating {
                             }
                         }
                         $escSID = $esc.IdentityReferenceSID.ToString()
-                        $escIdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $escSID } | Select-Object objectClass
+                        $escIdentityReferenceObjectClass = Get-SidObjectClass -Sid $escSID
                         if ($escSID -match $SafeUsers) {
                             # Safe Users are admins. Authenticating as an admin is bad.
                             $Principals += $esc.IdentityReference.Value
@@ -278,7 +331,7 @@ function Set-RiskRating {
                             }
                         }
                         $escSID = $esc.IdentityReferenceSID.ToString()
-                        $escIdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $escSID } | Select-Object objectClass
+                        $escIdentityReferenceObjectClass = Get-SidObjectClass -Sid $escSID
                         if ($escSID -match $UnsafeUsers) {
                             # Unsafe Users are large groups.
                             $Principals += $esc.IdentityReference.Value
@@ -314,7 +367,7 @@ function Set-RiskRating {
                             }
                         }
                         $escSID = $esc.IdentityReferenceSID.ToString()
-                        $escIdentityReferenceObjectClass = Get-ADObject -Filter { objectSid -eq $escSID } | Select-Object objectClass
+                        $escIdentityReferenceObjectClass = Get-SidObjectClass -Sid $escSID
                         if ($escSID -match $UnsafeUsers) {
                             # Unsafe Users are large groups.
                             $Principals += $esc.IdentityReference.Value
@@ -354,7 +407,7 @@ function Set-RiskRating {
                             }
                         }
                         $OtherIssueSID = $OtherIssue.IdentityReferenceSID.ToString()
-                        $OtherIssueIdentityReferenceObjectClass = (Get-ADObject -Filter { objectSid -eq $OtherIssueSID } | Select-Object objectClass).objectClass
+                        $OtherIssueIdentityReferenceObjectClass = (Get-SidObjectClass -Sid $OtherIssueSID).objectClass
                         if ($OtherIssueSID -match $UnsafeUsers) {
                             # Unsafe Users are large groups.
                             $Principals += $OtherIssue.IdentityReference.Value
