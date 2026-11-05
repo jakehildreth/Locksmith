@@ -84,3 +84,23 @@ jobs:
         if ('${{ github.ref }}' -ne 'refs/heads/main') { $releaseArguments += '--prerelease' }
         gh @releaseArguments
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    # main requires PRs, so the bot cannot push there. Commit the built script to the
+    # feature branch instead; it reaches main when the PR merges.
+    - name: Commit single-file script to branch
+      if: github.ref != 'refs/heads/main'
+      shell: pwsh
+      env:
+        BRANCH_NAME: ${{ github.ref_name }}
+      run: |
+        git diff --quiet -- Invoke-Locksmith.ps1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "[i] Invoke-Locksmith.ps1 unchanged" -ForegroundColor Cyan
+            exit 0
+        }
+        git config user.name 'github-actions[bot]'
+        git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+        git add Invoke-Locksmith.ps1
+        git commit -m 'chore(build): update Invoke-Locksmith.ps1 from prerelease build'
+        git push origin "HEAD:refs/heads/$env:BRANCH_NAME"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
