@@ -129,7 +129,7 @@
                 $CAHostDistinguishedName = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Server $ForestGC ).DistinguishedName
                 $CAHostFQDN = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Properties DnsHostname -Server $ForestGC).DnsHostname
             }
-            $ping = if ($CAHostFQDN) { Test-Connection -ComputerName $CAHostFQDN -Count 1 -Quiet } else { Write-Warning "Unable to resolve $($_.Name) Fully Qualified Domain Name (FQDN)" }
+            $ping = if ($CAHostFQDN) { Test-NetConnection -ComputerName $CAHostFQDN -Port 135 -InformationLevel Quiet -WarningAction SilentlyContinue } else { Write-Warning "Unable to resolve $($_.Name) Fully Qualified Domain Name (FQDN)" }
             if ($ping) {
                 try {
                     if ($Credential) {
