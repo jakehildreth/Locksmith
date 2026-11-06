@@ -1,4 +1,4 @@
-[CmdletBinding(HelpUri = 'https://jakehildreth.github.io/Locksmith/Invoke-Locksmith')]
+﻿[CmdletBinding(HelpUri = 'https://jakehildreth.github.io/Locksmith/Invoke-Locksmith')]
 param (
     # The mode to run Locksmith in. Defaults to 0.
     [Parameter(Mandatory = $false)]
@@ -3310,7 +3310,7 @@ function Set-AdditionalCAProperty {
                 $CAHostFQDN = (Get-ADObject -Filter { (Name -eq $CAHostName) -and (objectclass -eq 'computer') } -Properties DnsHostname -Server $ForestGC).DnsHostname
             }
             $ping = if ($CAHostFQDN) {
-                Test-Connection -ComputerName $CAHostFQDN -Count 1 -Quiet 
+                Test-NetConnection -ComputerName $CAHostFQDN -Port 135 -InformationLevel Quiet -WarningAction SilentlyContinue 
             }
             else {
                 Write-Warning "Unable to resolve $($_.Name) Fully Qualified Domain Name (FQDN)" 
@@ -3503,9 +3503,8 @@ function Get-SidObjectClass {
 
         .DESCRIPTION
         Wraps Get-ADObject with a script-scoped hashtable cache so that repeated SID-to-objectClass lookups
-        within a single Locksmith scan run hit Active Directory only once per unique SID. Common principals
-        such as Domain Users, Authenticated Users, and Domain Computers appear across many issues and
-        benefit most from this cache.
+        in the current module session hit Active Directory only once per unique SID. This speeds up a scan run
+        and can also benefit repeated scans executed in the same PowerShell session.
 
         .PARAMETER Sid
         The SID string to look up.
@@ -3514,9 +3513,8 @@ function Get-SidObjectClass {
         PSCustomObject with an objectClass property, or $null if the SID is not found in AD.
 
         .NOTES
-        The cache ($script:SidObjectClassCache) persists for the lifetime of the module session. It is
-        intentionally not cleared between issues so that common principals are resolved only once per
-        scan run.
+        The cache ($script:SidObjectClassCache) persists for the lifetime of the module session. If you need
+        per-scan isolation, clear it at the start of a scan (e.g., $script:SidObjectClassCache = $null).
 
         .EXAMPLE
         $objectClassInfo = Get-SidObjectClass -Sid 'S-1-5-21-...-512'
@@ -3540,7 +3538,8 @@ function Get-SidObjectClass {
             $result = Get-ADObject -Filter { objectSid -eq $Sid } -ErrorAction Stop |
                 Select-Object objectClass
             $script:SidObjectClassCache[$Sid] = $result
-        } catch {
+        }
+        catch {
             # Re-emit to the error stream so callers can detect/handle failures and so
             # $ErrorActionPreference is honoured. The key is intentionally left absent
             # so a subsequent call can retry the AD query.
@@ -5199,7 +5198,7 @@ function Invoke-Locksmith {
         [System.Management.Automation.PSCredential]$Credential
     )
 
-    $Version = '2026.1.4.1426'
+    $Version = '2026.11.61317'
     $LogoPart1 = @'
     _       _____  _______ _     _ _______ _______ _____ _______ _     _
     |      |     | |       |____/  |______ |  |  |   |      |    |_____|
@@ -5459,7 +5458,7 @@ Invoke-Locksmith -Mode 1
             $Output = Join-Path -Path $OutputPath -ChildPath "$FilePrefix ADCSRemediation.CSV"
             Write-Host "Writing AD CS issues to $Output..."
             try {
-                $AllIssues | Select-Object Forest, Technique, Name, DistinguishedName, Issue, Fix, @{l = 'Risk'; e = { $_.RiskName } }, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } | Export-Csv -NoTypeInformation $Output
+                $AllIssues | Select-Object Forest, Technique, Name, DistinguishedName, Issue, Fix, @{l = 'Risk'; e = { $_.RiskName } }, @{l = 'Risk Score'; e = { $_.RiskValue } }, @{l = 'Risk Score Detail'; e = { $_.RiskScoring -join "`n" } } | Export-Csv -NoTypeInformation -Encoding UTF8 $Output
                 Write-Host "$Output created successfully!`n"
             }
             catch {
