@@ -87,6 +87,7 @@ Build-Module -ModuleName 'Locksmith' {
         'Microsoft.PowerShell.Security'
         'CimCmdlets'
         'Dism'
+        'NetTCPIP'
     )
     foreach ($Module in $ExternalModules) {
         New-ConfigurationModule -Type ExternalModule -Name $Module
