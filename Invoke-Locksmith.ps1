@@ -2073,7 +2073,7 @@ function Format-Result {
         'Critical'      = 'White, DarkRed'
     }
 
-    if ($null -ne $Issue) {
+    if ($null -ne $Issue -and @($Issue).Count -gt 0) {
         $UniqueIssue = $Issue.Technique | Sort-Object -Unique
         $Title = $($IssueTable[$UniqueIssue])
         Write-Host "$('-'*($($Title.ToString().Length + 10)))" -ForegroundColor Black -BackgroundColor Magenta -NoNewline; Write-Host
@@ -5198,7 +5198,7 @@ function Invoke-Locksmith {
         [System.Management.Automation.PSCredential]$Credential
     )
 
-    $Version = '2026.11.61317'
+    $Version = '2026.11.61519'
     $LogoPart1 = @'
     _       _____  _______ _     _ _______ _______ _____ _______ _     _
     |      |     | |       |____/  |______ |  |  |   |      |    |_____|
