@@ -34,6 +34,7 @@ A small tool built to find and fix common misconfigurations in Active Directory 
    4. [Mode 3](#mode-3-identify-issues-and-fixes-output-to-csv)
    5. [Mode 4](#mode-4-fix-all-issues)
    6. [Scans](#scans)
+   7. [LocalCAOnly switch](#LocalCAOnly)
 3. [Security and Support](#security-and-support)
 
 <a name="installation" id="installation"></a>
@@ -189,6 +190,24 @@ Invoke-Locksmith.ps1 -Scans ESC1
 ``` powershell
 # Scan for ESC1, ESC2, and ESC8 vulnerable paths
 Invoke-Locksmith.ps1 -Scans ESC1,ESC2,ESC8
+```
+
+<a name="LocalCAOnly" id="LocalCAOnly"></a>
+### LocalCAOnly switch
+
+This switch is optional. Default is False.
+ 
+`-LocalCAOnly` is useful in environments where multiple Certificate Authority servers exist and RPC (TCP port 135) is restricted to/between Certificate Authority servers.
+Use the `-LocalCAOnly` switch to limit Certificate Authority checks to just the local Certificate Authority server you are running Locksmith on.
+
+Examples:
+
+```powershell
+# Module Syntax
+Invoke-Locksmith -Mode 1 -LocalCAOnly
+
+# Script Syntax
+.\Invoke-Locksmith.ps1 -Mode 3 -LocalCAOnly
 ```
 
 ## Security and Support
