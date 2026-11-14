@@ -162,11 +162,19 @@ Build-Module -ModuleName 'Locksmith' {
 
             [Parameter()]
             [ValidateScript({ Test-Path -Path $_ -PathType Container })]
-            [string]$OutputPath = $PWD
+            [string]$OutputPath = $PWD,
+
+            # The credential to use for working with ADCS.
+            [Parameter()]
+            [System.Management.Automation.PSCredential]$Credential,
+
+            # Run tests only on the local CA server
+            [Parameter(Mandatory = $False)]
+            [switch]$LocalCAOnly = $False
         )
     }
 
-    $PostScriptMerge = { Invoke-Locksmith -Mode $Mode -Scans $Scans }
+    $PostScriptMerge = { Invoke-Locksmith -Mode $Mode -Scans $Scans -LocalCAOnly $LocalCAOnly }
 
     # New-ConfigurationArtefact -Type Packed -Enable -Path "$PSScriptRoot\..\Artefacts\Packed" -ArtefactName '<ModuleName>.zip'
     New-ConfigurationArtefact -Type Script -Enable -Path "$PSScriptRoot\..\Artefacts\Script" -PreScriptMerge $PreScriptMerge -PostScriptMerge $PostScriptMerge -ScriptName 'Invoke-<ModuleName>.ps1'

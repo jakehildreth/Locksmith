@@ -14,6 +14,11 @@ param (
     [ValidateScript({ Test-Path -Path $_ -PathType Container })]
     [string]$OutputPath = $PWD,
 
+    # The credential to use for working with ADCS.
+    [Parameter()]
+    [System.Management.Automation.PSCredential]$Credential,
+
+    # Run tests only on the local CA server
     [Parameter(Mandatory = $False)]
     [switch]$LocalCAOnly = $False
 )
@@ -2392,7 +2397,6 @@ function Install-RSATADPowerShell {
         return
     }
 }
-
 function Invoke-Remediation {
     <#
     .SYNOPSIS
@@ -5206,7 +5210,7 @@ function Invoke-Locksmith {
         [switch]$LocalCAOnly = $False
     )
 
-    $Version = '2026.11.61519'
+    $Version = '2026.11.140721'
     $LogoPart1 = @'
     _       _____  _______ _     _ _______ _______ _____ _______ _     _
     |      |     | |       |____/  |______ |  |  |   |      |    |_____|
