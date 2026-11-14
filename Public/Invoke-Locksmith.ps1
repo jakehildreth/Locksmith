@@ -114,7 +114,11 @@ function Invoke-Locksmith {
 
         # The credential to use for working with ADCS.
         [Parameter()]
-        [System.Management.Automation.PSCredential]$Credential
+        [System.Management.Automation.PSCredential]$Credential,
+
+        # Run tests only on the local CA server
+        [Parameter(Mandatory = $False)]
+        [switch]$LocalCAOnly = $False
     )
 
     $Version = '<ModuleVersion>'
@@ -253,6 +257,34 @@ function Invoke-Locksmith {
         $ADCSObjects += $CAHosts
     } else {
         $ADCSObjects = Get-ADCSObject -Targets $Targets
+        if ($LocalCAOnly) {
+            $LocalNetwork = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
+            $LocalShortName = $LocalNetwork.HostName.Split('.')[0]
+            $LocalFqdn = $LocalNetwork.HostName
+            if ($LocalFqdn -notlike '*.*' -and $LocalNetwork.DomainName) {
+                $LocalFqdn = "$LocalShortName.$($LocalNetwork.DomainName)"
+            }
+            $LocalCAObjects = @(
+                $ADCSObjects | Where-Object {
+                    $_.objectClass -eq 'pKIEnrollmentService' -and
+                    ([string]$_.dNSHostName).TrimEnd('.') -in @(
+                        $LocalShortName
+                        $LocalFqdn.TrimEnd('.')
+                    )
+                }
+            )
+            if ($LocalCAObjects.Count -eq 0) {
+                throw "No AD CS enrollment service matches local host '$LocalFqdn'."
+            }
+
+            $ADCSObjects = @(
+                $ADCSObjects | Where-Object {
+                    $_.objectClass -ne 'pKIEnrollmentService'
+                }
+            ) + $LocalCAObjects
+
+            Write-Warning "LocalCAOnly: CA checks are limited to '$LocalFqdn'. Other CAs are excluded; AD template checks remain forest-wide."
+        }
         Set-AdditionalCAProperty -ADCSObjects $ADCSObjects -ForestGC $ForestGC
         $CAHosts = Get-CAHostObject -ADCSObjects $ADCSObjects -ForestGC $ForestGC
         $ADCSObjects += $CAHosts
